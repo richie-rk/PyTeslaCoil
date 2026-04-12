@@ -1,0 +1,74 @@
+{
+  "$schema_note": "Reference outputs from JavaTC for known coil designs. The 'expected_outputs' values are filled in once a JavaTC run has been done with the same inputs. While unfilled, they exist as placeholders so the test harness can be wired up.",
+  "tolerance_percent_default": 3.0,
+  "test_cases": [
+    {
+      "name": "Hackaday Mini SGTC",
+      "source": "https://hackaday.io/project/182677",
+      "inputs": {
+        "units": "inches",
+        "secondary": {
+          "radius": 0.83,
+          "height_1": 3.5,
+          "height_2": 8.5,
+          "turns": 570,
+          "wire_awg": 32
+        },
+        "primary": {
+          "radius_1": 1.5,
+          "radius_2": 1.5,
+          "height_1": 2.83,
+          "height_2": 3.368,
+          "turns": 11.0339,
+          "wire_diameter": 0.0253,
+          "capacitance_uf": 0.0013
+        },
+        "topload": {
+          "type": "toroid",
+          "minor_diameter": 1.0,
+          "major_diameter": 4.0,
+          "height": 9.0
+        }
+      },
+      "expected_outputs": {
+        "secondary_resonant_freq_khz": null,
+        "secondary_inductance_mh": null,
+        "secondary_self_capacitance_pf": null,
+        "primary_resonant_freq_khz": null,
+        "coupling_coefficient": null
+      }
+    },
+    {
+      "name": "TCML Medium Coil",
+      "source": "pupman.com mailing list",
+      "inputs": {
+        "units": "inches",
+        "secondary": {
+          "radius": 2.125,
+          "height_1": 3.0,
+          "height_2": 19.0,
+          "turns": 711,
+          "wire_awg": 24
+        },
+        "primary": {
+          "radius_1": 3.75,
+          "radius_2": 9.203,
+          "height_1": 1.0,
+          "height_2": 1.0,
+          "turns": 10.8191,
+          "wire_diameter": 0.25,
+          "capacitance_uf": 0.0077
+        },
+        "topload": {
+          "type": "toroid",
+          "minor_diameter": 4.0,
+          "major_diameter": 20.0,
+          "height": 21.0
+        }
+      },
+      "expected_outputs": {
+        "note": "Fill these from running JavaTC with these exact inputs"
+      }
+    }
+  ]
+}

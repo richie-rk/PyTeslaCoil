@@ -1,0 +1,79 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pyteslacoil"
+version = "0.1.0"
+description = "Open-source Tesla coil design calculator — the modern replacement for JavaTC"
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.10"
+authors = [
+    { name = "PyTeslaCoil Contributors" },
+]
+keywords = [
+    "tesla-coil",
+    "electronics",
+    "high-voltage",
+    "physics",
+    "calculator",
+    "engineering",
+    "electromagnetism",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Physics",
+    "Topic :: Scientific/Engineering :: Electronic Design Automation (EDA)",
+]
+
+dependencies = [
+    "nicegui>=2.0",
+    "pydantic>=2.0",
+    "numpy>=1.24",
+    "scipy>=1.10",
+    "plotly>=5.15",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "pytest-cov",
+    "ruff",
+    "mypy",
+]
+pdf = [
+    "reportlab>=4.0",
+]
+
+[project.scripts]
+pyteslacoil = "ui.main:run"
+
+[project.urls]
+Homepage = "https://github.com/richie-rk/pyteslacoil"
+Documentation = "https://github.com/richie-rk/pyteslacoil/tree/main/docs"
+Repository = "https://github.com/richie-rk/pyteslacoil"
+Issues = "https://github.com/richie-rk/pyteslacoil/issues"
+
+[tool.setuptools.packages.find]
+include = ["pyteslacoil*", "ui*"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP"]
+ignore = ["E501"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+addopts = "-v"
