@@ -1,6 +1,6 @@
 [build-system]
-requires = ["setuptools>=68", "wheel"]
-build-backend = "setuptools.build_meta"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
 [project]
 name = "pyteslacoil"
@@ -62,8 +62,8 @@ Documentation = "https://github.com/richie-rk/pyteslacoil/tree/main/docs"
 Repository = "https://github.com/richie-rk/pyteslacoil"
 Issues = "https://github.com/richie-rk/pyteslacoil/issues"
 
-[tool.setuptools.packages.find]
-include = ["pyteslacoil*", "ui*"]
+[tool.hatch.build.targets.wheel]
+packages = ["pyteslacoil", "ui"]
 
 [tool.ruff]
 line-length = 100
