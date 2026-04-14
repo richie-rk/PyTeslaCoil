@@ -11,8 +11,8 @@ from pyteslacoil.units import (
     length_to_meters,
     uf_to_farads,
 )
+from ui.components.cards import result_row, results_grid, section_card
 from ui.state import AppState
-from ui.theme import CARD_CLASS, LABEL_CLASS, SECTION_TITLE_CLASS, VALUE_CLASS
 
 
 def _default_primary() -> PrimaryInput:
@@ -36,73 +36,74 @@ def render(state: AppState) -> None:
     pri = state.design.primary
     unit = state.design.unit_system.value
 
-    with ui.row().classes("w-full gap-6"):
-        # ----- inputs ---------------------------------------------------
-        with ui.column().classes("w-1/2"):
-            with ui.card().classes(CARD_CLASS):
-                ui.label("Geometry").classes(SECTION_TITLE_CLASS)
+    with ui.row().classes("w-full gap-4 flex-wrap md:flex-nowrap"):
+        # ── Inputs ─────────────────────────────────────────────────
+        with ui.column().classes("flex-[6] min-w-[300px]"):
+            with section_card("Primary Coil Design", "track_changes"):
+                with ui.row().classes("w-full gap-4"):
+                    with ui.column().classes("flex-1 gap-3"):
+                        geom_select = ui.select(
+                            ["Flat Spiral", "Helical", "Conical"],
+                            value="Flat Spiral",
+                            label="Primary type",
+                        ).classes("w-full")
+                        r1 = ui.number(
+                            label=f"Inner radius ({unit})",
+                            value=length_in(pri.radius_1, unit),
+                            step=0.05,
+                            format="%.3f",
+                        ).classes("w-full")
+                        r2 = ui.number(
+                            label=f"Outer radius ({unit})",
+                            value=length_in(pri.radius_2, unit),
+                            step=0.05,
+                            format="%.3f",
+                        ).classes("w-full")
+                        h1 = ui.number(
+                            label=f"Start height ({unit})",
+                            value=length_in(pri.height_1, unit),
+                            step=0.05,
+                            format="%.3f",
+                        ).classes("w-full")
+                        h2 = ui.number(
+                            label=f"End height ({unit})",
+                            value=length_in(pri.height_2, unit),
+                            step=0.05,
+                            format="%.3f",
+                        ).classes("w-full")
 
-                geom_select = ui.select(
-                    ["Flat Spiral", "Helical", "Conical"],
-                    value="Flat Spiral",
-                    label="Primary type",
-                ).classes("w-full")
-
-                r1 = ui.number(
-                    label=f"Inner radius ({unit})",
-                    value=length_in(pri.radius_1, unit),
-                    step=0.05,
-                    format="%.3f",
-                ).classes("w-full")
-                r2 = ui.number(
-                    label=f"Outer radius ({unit})",
-                    value=length_in(pri.radius_2, unit),
-                    step=0.05,
-                    format="%.3f",
-                ).classes("w-full")
-                h1 = ui.number(
-                    label=f"Start height ({unit})",
-                    value=length_in(pri.height_1, unit),
-                    step=0.05,
-                    format="%.3f",
-                ).classes("w-full")
-                h2 = ui.number(
-                    label=f"End height ({unit})",
-                    value=length_in(pri.height_2, unit),
-                    step=0.05,
-                    format="%.3f",
-                ).classes("w-full")
-                turns = ui.number(
-                    label="Turns",
-                    value=float(pri.turns),
-                    min=0.1,
-                    step=0.1,
-                    format="%.4f",
-                ).classes("w-full")
-                wire_d = ui.number(
-                    label=f"Conductor diameter ({unit})",
-                    value=length_in(pri.wire_diameter, unit),
-                    step=0.005,
-                    format="%.4f",
-                ).classes("w-full")
-                cap = ui.number(
-                    label="Tank capacitance (µF)",
-                    value=farads_to_uf(pri.capacitance),
-                    step=0.001,
-                    format="%.4f",
-                ).classes("w-full")
-                lead_len = ui.number(
-                    label=f"Lead length ({unit})",
-                    value=length_in(pri.lead_length, unit),
-                    step=1.0,
-                    format="%.2f",
-                ).classes("w-full")
-                lead_d = ui.number(
-                    label=f"Lead diameter ({unit})",
-                    value=length_in(pri.lead_diameter, unit),
-                    step=0.01,
-                    format="%.4f",
-                ).classes("w-full")
+                    with ui.column().classes("flex-1 gap-3"):
+                        turns = ui.number(
+                            label="Turns",
+                            value=float(pri.turns),
+                            min=0.1,
+                            step=0.1,
+                            format="%.4f",
+                        ).classes("w-full")
+                        wire_d = ui.number(
+                            label=f"Conductor diameter ({unit})",
+                            value=length_in(pri.wire_diameter, unit),
+                            step=0.005,
+                            format="%.4f",
+                        ).classes("w-full")
+                        cap = ui.number(
+                            label="Tank capacitance (\u00b5F)",
+                            value=farads_to_uf(pri.capacitance),
+                            step=0.001,
+                            format="%.4f",
+                        ).classes("w-full")
+                        lead_len = ui.number(
+                            label=f"Lead length ({unit})",
+                            value=length_in(pri.lead_length, unit),
+                            step=1.0,
+                            format="%.2f",
+                        ).classes("w-full")
+                        lead_d = ui.number(
+                            label=f"Lead diameter ({unit})",
+                            value=length_in(pri.lead_diameter, unit),
+                            step=0.01,
+                            format="%.4f",
+                        ).classes("w-full")
 
                 auto = ui.checkbox("Auto-tune turns to match secondary", value=False)
                 auto.bind_value_to(state.design, "auto_tune")
@@ -110,7 +111,6 @@ def render(state: AppState) -> None:
                 def _apply():
                     geom = geom_select.value
                     try:
-                        # Encode geometry by setting radii/heights consistently.
                         new_r1 = length_to_meters(r1.value, unit)
                         new_r2 = length_to_meters(r2.value, unit)
                         new_h1 = length_to_meters(h1.value, unit)
@@ -142,47 +142,37 @@ def render(state: AppState) -> None:
                 geom_select.on_value_change(lambda *_: _apply())
                 auto.on_value_change(lambda *_: state.recalculate())
 
-        # ----- outputs --------------------------------------------------
-        with ui.column().classes("w-1/2"):
-            with ui.card().classes(CARD_CLASS):
-                ui.label("Results").classes(SECTION_TITLE_CLASS)
-                grid = ui.grid(columns=2).classes("w-full gap-2")
-                labels: dict[str, ui.label] = {}
-
-                def _row(name: str, key: str) -> None:
-                    with grid:
-                        ui.label(name).classes(LABEL_CLASS)
-                        labels[key] = ui.label("—").classes(VALUE_CLASS)
-
-                _row("Coil inductance", "L")
-                _row("Lead inductance", "Ll")
-                _row("Total inductance", "Ltot")
-                _row("Resonant freq", "f")
-                _row("Tuning ratio", "tune")
-                _row("Impedance", "Z")
-                _row("DC resistance", "rdc")
-                _row("Wire length", "wire")
-                _row("Geometry", "geom")
-                _row("Turns (live)", "n")
+        # ── Results ────────────────────────────────────────────────
+        with ui.column().classes("flex-[4] min-w-[300px]"):
+            with section_card("Results", "assessment"):
+                grid = results_grid()
+                lbl_L = result_row(grid, "Coil inductance")
+                lbl_Ll = result_row(grid, "Lead inductance")
+                lbl_Ltot = result_row(grid, "Total inductance")
+                lbl_f = result_row(grid, "Resonant freq")
+                lbl_tune = result_row(grid, "Tuning ratio")
+                lbl_Z = result_row(grid, "Impedance")
+                lbl_rdc = result_row(grid, "DC resistance")
+                lbl_wire = result_row(grid, "Wire length")
+                lbl_geom = result_row(grid, "Geometry")
+                lbl_n = result_row(grid, "Turns (live)")
 
             def _refresh(_state: AppState) -> None:
                 out = _state.outputs.primary
                 if out is None:
                     return
-                labels["L"].text = f"{out.inductance_uh:.2f} µH"
-                labels["Ll"].text = f"{out.lead_inductance_uh:.2f} µH"
-                labels["Ltot"].text = f"{out.total_inductance_uh:.2f} µH"
-                labels["f"].text = f"{out.resonant_frequency_khz:.2f} kHz"
+                lbl_L.text = f"{out.inductance_uh:.2f} \u00b5H"
+                lbl_Ll.text = f"{out.lead_inductance_uh:.2f} \u00b5H"
+                lbl_Ltot.text = f"{out.total_inductance_uh:.2f} \u00b5H"
+                lbl_f.text = f"{out.resonant_frequency_khz:.2f} kHz"
                 if out.tuning_ratio:
-                    labels["tune"].text = f"{out.tuning_ratio:.3f}"
-                labels["Z"].text = f"{out.impedance_ohms:,.1f} Ω"
-                labels["rdc"].text = f"{out.dc_resistance_ohms:.4f} Ω"
-                labels["wire"].text = (
-                    f"{out.wire_length_m:.2f} m  ({out.wire_length_ft:.2f} ft)"
-                )
-                labels["geom"].text = out.primary_geometry.value
+                    lbl_tune.text = f"{out.tuning_ratio:.3f}"
+                lbl_Z.text = f"{out.impedance_ohms:,.1f} \u03a9"
+                lbl_rdc.text = f"{out.dc_resistance_ohms:.4f} \u03a9"
+                lbl_wire.text = f"{out.wire_length_m:.2f} m  ({out.wire_length_ft:.2f} ft)"
+                lbl_geom.text = out.primary_geometry.value
                 if _state.design.primary:
-                    labels["n"].text = f"{_state.design.primary.turns:.4f}"
+                    lbl_n.text = f"{_state.design.primary.turns:.4f}"
 
             state.subscribe(_refresh)
             state.recalculate()

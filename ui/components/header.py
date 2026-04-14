@@ -4,20 +4,23 @@ from nicegui import ui
 
 from pyteslacoil.models.coil_design import UnitSystem
 from ui.state import AppState
-from ui.theme import PRIMARY, TEXT
+from ui.theme import ACCENT, SURFACE, SURFACE_BORDER, TEXT, TEXT_DIM
 
 
 def render(state: AppState) -> None:
-    with ui.header(elevated=True).classes(
-        "items-center justify-between bg-slate-900 text-cyan-200"
+    with ui.header(elevated=False).classes("items-center justify-between px-6").style(
+        f"background: {SURFACE} !important; "
+        f"border-bottom: 1px solid {SURFACE_BORDER} !important; "
+        f"box-shadow: none !important;"
     ):
         with ui.row().classes("items-center gap-3"):
-            ui.html(
-                '<span style="font-size:1.6rem">⚡</span>'
+            # Lightning bolt icon
+            ui.icon("bolt").classes("text-2xl").style(f"color: {ACCENT};")
+            ui.label("PyTeslaCoil").classes("text-xl font-bold tracking-wide").style(
+                f"color: {TEXT}; font-family: Inter, system-ui, sans-serif;"
             )
-            ui.label("PyTeslaCoil").classes("text-2xl font-bold tracking-wide")
-            ui.label("· Tesla coil design calculator").classes(
-                "text-sm text-slate-400"
+            ui.label("Tesla Coil Design Calculator").classes("text-sm").style(
+                f"color: {TEXT_DIM};"
             )
 
         with ui.row().classes("items-center gap-3"):
@@ -25,7 +28,7 @@ def render(state: AppState) -> None:
                 {UnitSystem.INCHES: "inches", UnitSystem.CM: "cm"},
                 value=state.design.unit_system,
                 label="Units",
-            ).classes("w-32")
+            ).classes("w-28").style(f"color: {TEXT};")
 
             def _on_units_change(e):
                 state.design.unit_system = e.value
@@ -34,14 +37,13 @@ def render(state: AppState) -> None:
             unit_select.on_value_change(_on_units_change)
 
             ui.button(
-                "Load Demo", on_click=lambda: _open_presets(state)
-            ).props("flat color=cyan")
-            ui.button(
-                "Recalculate", on_click=state.recalculate
-            ).props("color=primary")
+                "Load Demo", icon="science", on_click=lambda: _open_presets(state)
+            ).style(
+                f"background: transparent; border: 1px solid {ACCENT}; "
+                f"color: {ACCENT}; border-radius: 6px;"
+            )
 
 
 def _open_presets(state: AppState) -> None:
     from ui.components.presets_dialog import show_presets
-
     show_presets(state)

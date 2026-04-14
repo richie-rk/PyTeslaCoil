@@ -5,6 +5,7 @@ bound to the application state.
 """
 
 from ui.components import (
+    cards,
     coil_visualizer,
     coupling_tab,
     environment_tab,
@@ -19,6 +20,7 @@ from ui.components import (
 )
 
 __all__ = [
+    "cards",
     "header",
     "secondary_tab",
     "primary_tab",

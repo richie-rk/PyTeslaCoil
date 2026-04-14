@@ -4,8 +4,8 @@ from nicegui import ui
 
 from pyteslacoil.models.environment_model import EnvironmentInput
 from pyteslacoil.units import length_in, length_to_meters
+from ui.components.cards import result_row, results_grid, section_card
 from ui.state import AppState
-from ui.theme import CARD_CLASS, LABEL_CLASS, SECTION_TITLE_CLASS, VALUE_CLASS
 
 
 def render(state: AppState) -> None:
@@ -14,10 +14,10 @@ def render(state: AppState) -> None:
     env = state.design.environment
     unit = state.design.unit_system.value
 
-    with ui.row().classes("w-full gap-6"):
-        with ui.column().classes("w-1/2"):
-            with ui.card().classes(CARD_CLASS):
-                ui.label("Surrounding environment").classes(SECTION_TITLE_CLASS)
+    with ui.row().classes("w-full gap-4 flex-wrap md:flex-nowrap"):
+        # ── Inputs ─────────────────────────────────────────────────
+        with ui.column().classes("flex-1 min-w-[300px]"):
+            with section_card("Surrounding Environment", "public"):
                 gp = ui.number(
                     label=f"Ground plane radius ({unit}, 0 = none)",
                     value=length_in(env.ground_plane_radius, unit),
@@ -53,24 +53,19 @@ def render(state: AppState) -> None:
                 for w in (gp, wr, ch):
                     w.on("update:model-value", lambda *_: _apply(), throttle=0.3)
 
-        with ui.column().classes("w-1/2"):
-            with ui.card().classes(CARD_CLASS):
-                ui.label("Computed factors").classes(SECTION_TITLE_CLASS)
-                grid = ui.grid(columns=2).classes("w-full gap-2")
-                labels: dict[str, ui.label] = {}
-
-                with grid:
-                    ui.label("Proximity correction").classes(LABEL_CLASS)
-                    labels["f"] = ui.label("—").classes(VALUE_CLASS)
-                    ui.label("Notes").classes(LABEL_CLASS)
-                    labels["n"] = ui.label("—").classes(VALUE_CLASS)
+        # ── Results ────────────────────────────────────────────────
+        with ui.column().classes("flex-1 min-w-[300px]"):
+            with section_card("Computed Factors", "calculate"):
+                grid = results_grid()
+                lbl_f = result_row(grid, "Proximity correction")
+                lbl_n = result_row(grid, "Notes")
 
             def _refresh(_state: AppState):
                 out = _state.outputs.environment
                 if out is None:
                     return
-                labels["f"].text = f"{out.proximity_correction_factor:.3f}"
-                labels["n"].text = out.notes
+                lbl_f.text = f"{out.proximity_correction_factor:.3f}"
+                lbl_n.text = out.notes
 
             state.subscribe(_refresh)
             state.recalculate()

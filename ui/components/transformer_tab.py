@@ -4,8 +4,8 @@ from nicegui import ui
 
 from pyteslacoil.models.coil_design import TransformerType
 from pyteslacoil.models.transformer_model import TransformerInput
+from ui.components.cards import result_row, results_grid, section_card
 from ui.state import AppState
-from ui.theme import CARD_CLASS, LABEL_CLASS, SECTION_TITLE_CLASS, VALUE_CLASS
 
 
 def _default_transformer() -> TransformerInput:
@@ -23,11 +23,10 @@ def render(state: AppState) -> None:
         state.design.transformer = _default_transformer()
     xfmr = state.design.transformer
 
-    with ui.row().classes("w-full gap-6"):
-        with ui.column().classes("w-1/2"):
-            with ui.card().classes(CARD_CLASS):
-                ui.label("Transformer").classes(SECTION_TITLE_CLASS)
-
+    with ui.row().classes("w-full gap-4 flex-wrap md:flex-nowrap"):
+        # ── Inputs ─────────────────────────────────────────────────
+        with ui.column().classes("flex-1 min-w-[300px]"):
+            with section_card("Transformer", "electric_bolt"):
                 t_select = ui.select(
                     {
                         TransformerType.NST: "NST",
@@ -53,11 +52,10 @@ def render(state: AppState) -> None:
                     format="%.0f",
                 ).classes("w-full")
                 iout = ui.number(
-                    label="Output current (A_rms)",
-                    value=xfmr.output_current * 1000,  # mA for ergonomics
+                    label="Output current (mA_rms)",
+                    value=xfmr.output_current * 1000,
                     step=1,
                     format="%.1f",
-                    suffix="mA",
                 ).classes("w-full")
                 fline = ui.number(
                     label="Line frequency (Hz)",
@@ -85,34 +83,27 @@ def render(state: AppState) -> None:
                     w.on("update:model-value", lambda *_: _apply(), throttle=0.3)
                 t_select.on_value_change(lambda *_: _apply())
 
-        with ui.column().classes("w-1/2"):
-            with ui.card().classes(CARD_CLASS):
-                ui.label("Results").classes(SECTION_TITLE_CLASS)
-                grid = ui.grid(columns=2).classes("w-full gap-2")
-                labels: dict[str, ui.label] = {}
-
-                def _row(name, key):
-                    with grid:
-                        ui.label(name).classes(LABEL_CLASS)
-                        labels[key] = ui.label("—").classes(VALUE_CLASS)
-
-                _row("V_peak", "vp")
-                _row("VA rating", "va")
-                _row("Impedance", "z")
-                _row("Resonant cap", "cres")
-                _row("LTR cap (1.6×)", "cltr")
-                _row("Input power", "p")
+        # ── Results ────────────────────────────────────────────────
+        with ui.column().classes("flex-1 min-w-[300px]"):
+            with section_card("Results", "assessment"):
+                grid = results_grid()
+                lbl_vp = result_row(grid, "V_peak")
+                lbl_va = result_row(grid, "VA rating")
+                lbl_z = result_row(grid, "Impedance")
+                lbl_cres = result_row(grid, "Resonant cap")
+                lbl_cltr = result_row(grid, "LTR cap (1.6x)")
+                lbl_p = result_row(grid, "Input power")
 
             def _refresh(_state: AppState):
                 out = _state.outputs.transformer
                 if out is None:
                     return
-                labels["vp"].text = f"{out.output_voltage_peak / 1000:.2f} kV"
-                labels["va"].text = f"{out.va_rating:.0f} VA"
-                labels["z"].text = f"{out.impedance_ohms:,.0f} Ω"
-                labels["cres"].text = f"{out.resonant_cap_size_nf:.2f} nF"
-                labels["cltr"].text = f"{out.ltr_cap_size_nf:.2f} nF"
-                labels["p"].text = f"{out.input_power_w:.0f} W"
+                lbl_vp.text = f"{out.output_voltage_peak / 1000:.2f} kV"
+                lbl_va.text = f"{out.va_rating:.0f} VA"
+                lbl_z.text = f"{out.impedance_ohms:,.0f} \u03a9"
+                lbl_cres.text = f"{out.resonant_cap_size_nf:.2f} nF"
+                lbl_cltr.text = f"{out.ltr_cap_size_nf:.2f} nF"
+                lbl_p.text = f"{out.input_power_w:.0f} W"
 
             state.subscribe(_refresh)
             state.recalculate()

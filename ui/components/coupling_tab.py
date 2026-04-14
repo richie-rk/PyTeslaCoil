@@ -10,16 +10,9 @@ from nicegui import ui
 
 from pyteslacoil.engine.coupling import calculate_coupling
 from pyteslacoil.models.coupling_model import CouplingInput
+from ui.components.cards import result_row, results_grid, section_card
 from ui.state import AppState
-from ui.theme import (
-    BAD,
-    CARD_CLASS,
-    GOOD,
-    LABEL_CLASS,
-    SECTION_TITLE_CLASS,
-    VALUE_CLASS,
-    WARN,
-)
+from ui.theme import ACCENT, BAD, GOOD, WARN
 
 
 def _quality_color(k: float) -> str:
@@ -31,10 +24,10 @@ def _quality_color(k: float) -> str:
 
 
 def render(state: AppState) -> None:
-    with ui.row().classes("w-full gap-6"):
-        with ui.column().classes("w-1/2"):
-            with ui.card().classes(CARD_CLASS):
-                ui.label("Target coupling").classes(SECTION_TITLE_CLASS)
+    with ui.row().classes("w-full gap-4 flex-wrap md:flex-nowrap"):
+        # ── Inputs ─────────────────────────────────────────────────
+        with ui.column().classes("flex-1 min-w-[300px]"):
+            with section_card("Target Coupling", "link"):
                 desired = ui.number(
                     label="Desired k",
                     value=state.design.desired_coupling,
@@ -59,7 +52,7 @@ def render(state: AppState) -> None:
                     )
                     if not out.adjustment_converged:
                         ui.notify(
-                            "Could not bracket the desired k — try a value "
+                            "Could not bracket the desired k \u2014 try a value "
                             "between the current min/max.",
                             type="warning",
                         )
@@ -79,39 +72,35 @@ def render(state: AppState) -> None:
 
                 ui.button(
                     "Auto-adjust primary height", on_click=_do_adjust
-                ).props("color=cyan").classes("mt-2")
+                ).style(
+                    f"background: {ACCENT}; color: #0f1117; border-radius: 6px;"
+                ).classes("mt-3")
 
-        with ui.column().classes("w-1/2"):
-            with ui.card().classes(CARD_CLASS):
-                ui.label("Computed coupling").classes(SECTION_TITLE_CLASS)
-                grid = ui.grid(columns=2).classes("w-full gap-2")
-                labels: dict[str, ui.label] = {}
-
-                def _row(name, key):
-                    with grid:
-                        ui.label(name).classes(LABEL_CLASS)
-                        labels[key] = ui.label("—").classes(VALUE_CLASS)
-
-                _row("Coupling coefficient k", "k")
-                _row("Mutual inductance", "M")
-                _row("Energy transfer time", "t")
-                _row("Cycles to transfer", "cyc")
-                _row("Quality", "q")
+        # ── Results ────────────────────────────────────────────────
+        with ui.column().classes("flex-1 min-w-[300px]"):
+            with section_card("Computed Coupling", "insights"):
+                grid = results_grid()
+                lbl_k = result_row(grid, "Coupling coefficient k")
+                lbl_M = result_row(grid, "Mutual inductance")
+                lbl_t = result_row(grid, "Energy transfer time")
+                lbl_cyc = result_row(grid, "Cycles to transfer")
+                lbl_q = result_row(grid, "Quality")
 
             def _refresh(_state: AppState):
                 out = _state.outputs.coupling
                 if out is None:
                     return
-                labels["k"].text = f"{out.coupling_coefficient:.4f}"
-                labels["M"].text = f"{out.mutual_inductance_uh:.3f} µH"
+                lbl_k.text = f"{out.coupling_coefficient:.4f}"
+                lbl_M.text = f"{out.mutual_inductance_uh:.3f} \u00b5H"
                 t_us = out.energy_transfer_time_s * 1e6
-                labels["t"].text = f"{t_us:.2f} µs"
-                labels["cyc"].text = f"{out.energy_transfer_cycles:.2f}"
+                lbl_t.text = f"{t_us:.2f} \u00b5s"
+                lbl_cyc.text = f"{out.energy_transfer_cycles:.2f}"
                 color = _quality_color(out.coupling_coefficient)
-                labels["q"].text = "ok" if color == GOOD else (
+                quality = "ok" if color == GOOD else (
                     "marginal" if color == WARN else "out of range"
                 )
-                labels["q"].style(f"color: {color}")
+                lbl_q.text = quality
+                lbl_q.style(f"color: {color} !important;")
 
             state.subscribe(_refresh)
             state.recalculate()

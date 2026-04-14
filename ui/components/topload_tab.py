@@ -5,8 +5,8 @@ from nicegui import ui
 from pyteslacoil.models.coil_design import ToploadType
 from pyteslacoil.models.topload_model import ToploadInput
 from pyteslacoil.units import inches_to_meters, length_in, length_to_meters
+from ui.components.cards import result_row, results_grid, section_card
 from ui.state import AppState
-from ui.theme import CARD_CLASS, LABEL_CLASS, SECTION_TITLE_CLASS, VALUE_CLASS
 
 
 def _default_topload() -> ToploadInput:
@@ -24,13 +24,16 @@ def render(state: AppState) -> None:
     top = state.design.topload
     unit = state.design.unit_system.value
 
-    with ui.row().classes("w-full gap-6"):
-        with ui.column().classes("w-1/2"):
-            with ui.card().classes(CARD_CLASS):
-                ui.label("Topload geometry").classes(SECTION_TITLE_CLASS)
-
+    with ui.row().classes("w-full gap-4 flex-wrap md:flex-nowrap"):
+        # ── Inputs ─────────────────────────────────────────────────
+        with ui.column().classes("flex-1 min-w-[300px]"):
+            with section_card("Topload Geometry", "circle"):
                 type_select = ui.select(
-                    {ToploadType.TOROID: "Toroid", ToploadType.SPHERE: "Sphere", ToploadType.NONE: "None"},
+                    {
+                        ToploadType.TOROID: "Toroid",
+                        ToploadType.SPHERE: "Sphere",
+                        ToploadType.NONE: "None",
+                    },
                     value=top.topload_type,
                     label="Type",
                 ).classes("w-full")
@@ -91,29 +94,22 @@ def render(state: AppState) -> None:
                     w.on("update:model-value", lambda *_: _apply(), throttle=0.3)
                 type_select.on_value_change(lambda *_: _apply())
 
-        with ui.column().classes("w-1/2"):
-            with ui.card().classes(CARD_CLASS):
-                ui.label("Results").classes(SECTION_TITLE_CLASS)
-                grid = ui.grid(columns=2).classes("w-full gap-2")
-                labels: dict[str, ui.label] = {}
-
-                def _row(name, key):
-                    with grid:
-                        ui.label(name).classes(LABEL_CLASS)
-                        labels[key] = ui.label("—").classes(VALUE_CLASS)
-
-                _row("Capacitance", "C")
-                _row("System f (with sec.)", "fsys")
-                _row("Type", "type")
+        # ── Results ────────────────────────────────────────────────
+        with ui.column().classes("flex-1 min-w-[300px]"):
+            with section_card("Results", "assessment"):
+                grid = results_grid()
+                lbl_c = result_row(grid, "Capacitance")
+                lbl_fsys = result_row(grid, "System f (with sec.)")
+                lbl_type = result_row(grid, "Type")
 
             def _refresh(_state: AppState):
                 out = _state.outputs.topload
                 if out is None:
                     return
-                labels["C"].text = f"{out.capacitance_pf:.2f} pF"
-                labels["type"].text = out.topload_type.value
+                lbl_c.text = f"{out.capacitance_pf:.2f} pF"
+                lbl_type.text = out.topload_type.value
                 if _state.outputs.system_resonant_frequency_khz:
-                    labels["fsys"].text = (
+                    lbl_fsys.text = (
                         f"{_state.outputs.system_resonant_frequency_khz:.2f} kHz"
                     )
 
