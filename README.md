@@ -5,8 +5,13 @@
 
 An open-source Tesla coil design calculator — the modern Python replacement for JavaTC, featuring a pure-Python physics engine, Pydantic v2 models, and a NiceGUI web frontend.
 
+<p align="center">
+  <img src="docs/screenshots/08_results_tab.png" alt="PyTeslaCoil Results Dashboard" width="800">
+</p>
+
 ## Table of Contents
 - [Overview](#overview)
+- [Screenshots](#screenshots)
 - [Features](#features)
 - [Architecture](#architecture)
 - [Installation](#installation)
@@ -22,6 +27,43 @@ An open-source Tesla coil design calculator — the modern Python replacement fo
 PyTeslaCoil is a complete electromagnetic design tool for spark-gap (SGTC) and dual-resonant solid-state (DRSSTC) Tesla coils. It replicates all core features of JavaTC (classictesla.com) — the standard tool in the Tesla coil community since ~2000 — in a modern, all-Python stack with a browser-based UI.
 
 The application computes secondary/primary inductance, self-capacitance, coupling coefficient, resonant frequencies, spark-gap behavior, transformer sizing, and estimated spark length. It can be used as a **standalone library** for scripts and notebooks, or as a **full desktop app** with live-updating calculations and a 2D coil visualizer.
+
+## Screenshots
+
+### Secondary Coil Design
+Enter coil geometry, wire gauge, and winding parameters. Results update live as you type.
+
+<p align="center">
+  <img src="docs/screenshots/01_secondary_tab.png" alt="Secondary Coil Tab" width="800">
+</p>
+
+### Primary Coil Design
+Configure flat spiral, helical, or conical primaries with auto-tune to match secondary frequency.
+
+<p align="center">
+  <img src="docs/screenshots/02_primary_tab.png" alt="Primary Coil Tab" width="800">
+</p>
+
+### Coupling Analysis
+View the computed coupling coefficient with quality indicators. Auto-adjust primary height to hit a target k.
+
+<p align="center">
+  <img src="docs/screenshots/04_coupling_tab.png" alt="Coupling Tab" width="800">
+</p>
+
+### Spark Gap Configuration
+Static and rotary gap parameters with breakdown voltage, BPS, and energy-per-bang calculations.
+
+<p align="center">
+  <img src="docs/screenshots/05_spark_gap_tab.png" alt="Spark Gap Tab" width="800">
+</p>
+
+### Results Dashboard
+Headline metrics (resonant frequency, coupling, spark length), detailed subsection results, coil cross-section visualizer, and one-click export to text, JSON, or PDF.
+
+<p align="center">
+  <img src="docs/screenshots/08_results_tab.png" alt="Results Dashboard" width="800">
+</p>
 
 ## Features
 
@@ -84,8 +126,8 @@ User (browser) <--> NiceGUI Frontend (ui/) <--> Physics Engine (pyteslacoil/engi
 
 1. **Clone the repository**:
    ```bash
-   git clone https://github.com/richie-rk/pyteslacoil.git
-   cd pyteslacoil
+   git clone https://github.com/richie-rk/PyTeslaCoil.git
+   cd PyTeslaCoil
    ```
 
 2. **Create a virtual environment**:
@@ -270,6 +312,7 @@ PyTeslaCoil/
 ├── LICENSE                          # MIT
 ├── .gitignore
 ├── CLAUDE.md                        # Build conventions for Claude Code
+├── DESIGN.md                        # UI design system tokens (from Stitch)
 │
 ├── pyteslacoil/                     # Main package
 │   ├── __init__.py                  # Public API (10 re-exported functions)
@@ -313,8 +356,9 @@ PyTeslaCoil/
 ├── ui/                              # NiceGUI frontend
 │   ├── main.py                      # App entry point, tab layout
 │   ├── state.py                     # Reactive AppState + recalculate pipeline
-│   ├── theme.py                     # Dark theme palette
-│   └── components/                  # 10 UI modules
+│   ├── theme.py                     # Design system tokens + global CSS
+│   └── components/                  # 11 UI modules
+│       ├── cards.py                 # Shared card & metric components
 │       ├── header.py                # Title bar, units, Load Demo
 │       ├── secondary_tab.py         # Secondary inputs + live outputs
 │       ├── primary_tab.py           # Primary inputs + auto-tune toggle
@@ -347,7 +391,8 @@ PyTeslaCoil/
 │
 └── docs/
     ├── PyTeslaCoil_Implementation_Guide.md
-    └── TECHNICAL_SUMMARY.md
+    ├── TECHNICAL_SUMMARY.md
+    └── screenshots/                 # UI screenshots for README
 ```
 
 ## Physics Reference
