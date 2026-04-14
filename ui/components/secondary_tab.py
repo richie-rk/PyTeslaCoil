@@ -13,13 +13,12 @@ from pyteslacoil.units import (
     inches_to_meters,
     length_in,
     length_to_meters,
-    meters_to_inches,
 )
 from pyteslacoil.wire_data import AVAILABLE_AWG
+from ui.components.cards import result_row, results_grid, section_card
 from ui.state import AppState
-from ui.theme import CARD_CLASS, LABEL_CLASS, SECTION_TITLE_CLASS, VALUE_CLASS
 
-# A reasonable default secondary so the tab boots with usable values.
+
 def _default_secondary() -> SecondaryInput:
     return SecondaryInput(
         radius_1=inches_to_meters(2.125),
@@ -39,49 +38,50 @@ def render(state: AppState) -> None:
     sec = state.design.secondary
     unit = state.design.unit_system.value
 
-    with ui.row().classes("w-full gap-6"):
-        # ----- inputs ---------------------------------------------------
-        with ui.column().classes("w-1/2"):
-            with ui.card().classes(CARD_CLASS):
-                ui.label("Geometry").classes(SECTION_TITLE_CLASS)
+    with ui.row().classes("w-full gap-4 flex-wrap md:flex-nowrap"):
+        # ── Inputs ─────────────────────────────────────────────────
+        with ui.column().classes("flex-[6] min-w-[300px]"):
+            with section_card("Secondary Coil Design", "bolt"):
+                with ui.row().classes("w-full gap-4"):
+                    with ui.column().classes("flex-1 gap-3"):
+                        diam_in = ui.number(
+                            label=f"Coil diameter ({unit})",
+                            value=length_in(2 * sec.radius_1, unit),
+                            step=0.1,
+                            format="%.3f",
+                        ).classes("w-full")
+                        h1 = ui.number(
+                            label=f"Winding start height ({unit})",
+                            value=length_in(sec.height_1, unit),
+                            step=0.1,
+                            format="%.3f",
+                        ).classes("w-full")
+                        h2 = ui.number(
+                            label=f"Winding end height ({unit})",
+                            value=length_in(sec.height_2, unit),
+                            step=0.1,
+                            format="%.3f",
+                        ).classes("w-full")
 
-                diam_in = ui.number(
-                    label=f"Coil diameter ({unit})",
-                    value=length_in(2 * sec.radius_1, unit),
-                    step=0.1,
-                    format="%.3f",
-                ).classes("w-full")
-
-                h1 = ui.number(
-                    label=f"Winding start height ({unit})",
-                    value=length_in(sec.height_1, unit),
-                    step=0.1,
-                    format="%.3f",
-                ).classes("w-full")
-                h2 = ui.number(
-                    label=f"Winding end height ({unit})",
-                    value=length_in(sec.height_2, unit),
-                    step=0.1,
-                    format="%.3f",
-                ).classes("w-full")
-                turns = ui.number(
-                    label="Number of turns",
-                    value=float(sec.turns),
-                    min=1,
-                    step=1,
-                    format="%.0f",
-                ).classes("w-full")
-                awg = ui.select(
-                    {a: f"AWG {a}" for a in AVAILABLE_AWG},
-                    value=sec.wire_awg,
-                    label="Wire gauge",
-                ).classes("w-full")
-                temp = ui.number(
-                    label="Temperature (°C)",
-                    value=sec.temperature_c,
-                    step=1,
-                    format="%.1f",
-                ).classes("w-full")
+                    with ui.column().classes("flex-1 gap-3"):
+                        turns = ui.number(
+                            label="Number of turns",
+                            value=float(sec.turns),
+                            min=1,
+                            step=1,
+                            format="%.0f",
+                        ).classes("w-full")
+                        awg = ui.select(
+                            {a: f"AWG {a}" for a in AVAILABLE_AWG},
+                            value=sec.wire_awg,
+                            label="Wire gauge",
+                        ).classes("w-full")
+                        temp = ui.number(
+                            label="Temperature (\u00b0C)",
+                            value=sec.temperature_c,
+                            step=1,
+                            format="%.1f",
+                        ).classes("w-full")
 
                 def _apply():
                     try:
@@ -104,52 +104,40 @@ def render(state: AppState) -> None:
                     w.on("update:model-value", lambda *_: _apply(), throttle=0.3)
                 awg.on_value_change(lambda *_: _apply())
 
-        # ----- outputs --------------------------------------------------
-        with ui.column().classes("w-1/2"):
-            with ui.card().classes(CARD_CLASS):
-                ui.label("Results").classes(SECTION_TITLE_CLASS)
-                grid = ui.grid(columns=2).classes("w-full gap-2")
-                labels: dict[str, ui.label] = {}
-
-                def _row(name: str, key: str) -> None:
-                    with grid:
-                        ui.label(name).classes(LABEL_CLASS)
-                        labels[key] = ui.label("—").classes(VALUE_CLASS)
-
-                _row("Inductance", "L")
-                _row("Self-capacitance", "C")
-                _row("Resonant freq (bare)", "f")
-                _row("Resonant freq (with topload)", "f_sys")
-                _row("Wire length", "wire")
-                _row("DC resistance", "rdc")
-                _row("AC resistance", "rac")
-                _row("Q factor", "Q")
-                _row("Impedance", "Z")
-                _row("Aspect ratio", "ar")
-                _row("Geometry", "geom")
+        # ── Results ────────────────────────────────────────────────
+        with ui.column().classes("flex-[4] min-w-[300px]"):
+            with section_card("Results", "assessment"):
+                grid = results_grid()
+                lbl_L = result_row(grid, "Inductance")
+                lbl_C = result_row(grid, "Self-capacitance")
+                lbl_f = result_row(grid, "Resonant freq (bare)")
+                lbl_fsys = result_row(grid, "Resonant freq (with topload)")
+                lbl_wire = result_row(grid, "Wire length")
+                lbl_rdc = result_row(grid, "DC resistance")
+                lbl_rac = result_row(grid, "AC resistance")
+                lbl_Q = result_row(grid, "Q factor")
+                lbl_Z = result_row(grid, "Impedance")
+                lbl_ar = result_row(grid, "Aspect ratio")
+                lbl_geom = result_row(grid, "Geometry")
 
             def _refresh(_state: AppState) -> None:
                 out = _state.outputs.secondary
                 if out is None:
                     return
-                labels["L"].text = f"{out.inductance_mh:.3f} mH"
-                labels["C"].text = f"{out.self_capacitance_pf:.2f} pF"
-                labels["f"].text = f"{out.resonant_frequency_khz:.2f} kHz"
+                lbl_L.text = f"{out.inductance_mh:.3f} mH"
+                lbl_C.text = f"{out.self_capacitance_pf:.2f} pF"
+                lbl_f.text = f"{out.resonant_frequency_khz:.2f} kHz"
                 if out.system_resonant_frequency_khz:
-                    labels["f_sys"].text = (
-                        f"{out.system_resonant_frequency_khz:.2f} kHz"
-                    )
+                    lbl_fsys.text = f"{out.system_resonant_frequency_khz:.2f} kHz"
                 else:
-                    labels["f_sys"].text = "—"
-                labels["wire"].text = (
-                    f"{out.wire_length_m:.1f} m  ({out.wire_length_ft:.1f} ft)"
-                )
-                labels["rdc"].text = f"{out.dc_resistance_ohms:.2f} Ω"
-                labels["rac"].text = f"{out.ac_resistance_ohms:.2f} Ω"
-                labels["Q"].text = f"{out.q_factor:.0f}"
-                labels["Z"].text = f"{out.impedance_ohms:,.0f} Ω"
-                labels["ar"].text = f"{out.aspect_ratio:.2f}"
-                labels["geom"].text = out.coil_geometry.value
+                    lbl_fsys.text = "\u2014"
+                lbl_wire.text = f"{out.wire_length_m:.1f} m  ({out.wire_length_ft:.1f} ft)"
+                lbl_rdc.text = f"{out.dc_resistance_ohms:.2f} \u03a9"
+                lbl_rac.text = f"{out.ac_resistance_ohms:.2f} \u03a9"
+                lbl_Q.text = f"{out.q_factor:.0f}"
+                lbl_Z.text = f"{out.impedance_ohms:,.0f} \u03a9"
+                lbl_ar.text = f"{out.aspect_ratio:.2f}"
+                lbl_geom.text = out.coil_geometry.value
 
             state.subscribe(_refresh)
             state.recalculate()

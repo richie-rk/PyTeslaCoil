@@ -4,8 +4,9 @@ from nicegui import ui
 
 from pyteslacoil.models.spark_gap_model import RotaryGapInput, StaticGapInput
 from pyteslacoil.units import inches_to_meters, length_in, length_to_meters, nf_to_farads
+from ui.components.cards import result_row, results_grid, section_card
 from ui.state import AppState
-from ui.theme import CARD_CLASS, LABEL_CLASS, SECTION_TITLE_CLASS, VALUE_CLASS
+from ui.theme import SURFACE_BORDER
 
 
 def _default_static(state: AppState) -> StaticGapInput:
@@ -59,7 +60,9 @@ def render(state: AppState) -> None:
 
     unit = state.design.unit_system.value
 
-    with ui.tabs().classes("w-full") as gap_tabs:
+    with ui.tabs().classes("w-full").style(
+        f"background: transparent; border-bottom: 1px solid {SURFACE_BORDER};"
+    ) as gap_tabs:
         static = ui.tab("Static")
         rotary = ui.tab("Rotary")
 
@@ -72,10 +75,9 @@ def render(state: AppState) -> None:
 
 def _render_static(state: AppState, unit: str) -> None:
     sg = state.design.static_gap
-    with ui.row().classes("w-full gap-6"):
-        with ui.column().classes("w-1/2"):
-            with ui.card().classes(CARD_CLASS):
-                ui.label("Static gap").classes(SECTION_TITLE_CLASS)
+    with ui.row().classes("w-full gap-4 flex-wrap md:flex-nowrap"):
+        with ui.column().classes("flex-1 min-w-[300px]"):
+            with section_card("Static Gap", "flash_on"):
                 n = ui.number(
                     label="# electrodes",
                     value=sg.num_electrodes,
@@ -133,34 +135,26 @@ def _render_static(state: AppState, unit: str) -> None:
                 for w in (n, d, gap, vpk, cap, fline):
                     w.on("update:model-value", lambda *_: _apply(), throttle=0.3)
 
-        with ui.column().classes("w-1/2"):
-            with ui.card().classes(CARD_CLASS):
-                ui.label("Results").classes(SECTION_TITLE_CLASS)
-                grid = ui.grid(columns=2).classes("w-full gap-2")
-                labels: dict[str, ui.label] = {}
-
-                def _row(name, key):
-                    with grid:
-                        ui.label(name).classes(LABEL_CLASS)
-                        labels[key] = ui.label("—").classes(VALUE_CLASS)
-
-                _row("Gap per electrode", "gap")
-                _row("Breakdown voltage", "vbk")
-                _row("% cap charged", "pct")
-                _row("BPS", "bps")
-                _row("Energy / bang", "e")
-                _row("Spark length", "spark")
+        with ui.column().classes("flex-1 min-w-[300px]"):
+            with section_card("Results", "assessment"):
+                grid = results_grid()
+                lbl_gap = result_row(grid, "Gap per electrode")
+                lbl_vbk = result_row(grid, "Breakdown voltage")
+                lbl_pct = result_row(grid, "% cap charged")
+                lbl_bps = result_row(grid, "BPS")
+                lbl_e = result_row(grid, "Energy / bang")
+                lbl_spark = result_row(grid, "Spark length")
 
             def _refresh(_state: AppState):
                 out = _state.outputs.static_gap
                 if out is None:
                     return
-                labels["gap"].text = f"{out.gap_per_electrode_m * 1000:.2f} mm"
-                labels["vbk"].text = f"{out.breakdown_voltage_v / 1000:.2f} kV"
-                labels["pct"].text = f"{out.percent_cap_charged:.1f} %"
-                labels["bps"].text = f"{out.bps:.0f}"
-                labels["e"].text = f"{out.effective_cap_energy_j:.3f} J"
-                labels["spark"].text = (
+                lbl_gap.text = f"{out.gap_per_electrode_m * 1000:.2f} mm"
+                lbl_vbk.text = f"{out.breakdown_voltage_v / 1000:.2f} kV"
+                lbl_pct.text = f"{out.percent_cap_charged:.1f} %"
+                lbl_bps.text = f"{out.bps:.0f}"
+                lbl_e.text = f"{out.effective_cap_energy_j:.3f} J"
+                lbl_spark.text = (
                     f"{out.spark_length_m * 100:.1f} cm  "
                     f"({out.spark_length_m / 0.0254:.1f} in)"
                 )
@@ -170,10 +164,9 @@ def _render_static(state: AppState, unit: str) -> None:
 
 def _render_rotary(state: AppState, unit: str) -> None:
     rg = state.design.rotary_gap
-    with ui.row().classes("w-full gap-6"):
-        with ui.column().classes("w-1/2"):
-            with ui.card().classes(CARD_CLASS):
-                ui.label("Rotary gap").classes(SECTION_TITLE_CLASS)
+    with ui.row().classes("w-full gap-4 flex-wrap md:flex-nowrap"):
+        with ui.column().classes("flex-1 min-w-[300px]"):
+            with section_card("Rotary Gap", "settings"):
                 ns = ui.number(
                     label="# stationary electrodes",
                     value=rg.num_stationary_electrodes,
@@ -246,36 +239,28 @@ def _render_rotary(state: AppState, unit: str) -> None:
                 for w in (ns, nr, rpm, rd, sd, pdia, vpk, cap):
                     w.on("update:model-value", lambda *_: _apply(), throttle=0.3)
 
-        with ui.column().classes("w-1/2"):
-            with ui.card().classes(CARD_CLASS):
-                ui.label("Results").classes(SECTION_TITLE_CLASS)
-                grid = ui.grid(columns=2).classes("w-full gap-2")
-                labels: dict[str, ui.label] = {}
-
-                def _row(name, key):
-                    with grid:
-                        ui.label(name).classes(LABEL_CLASS)
-                        labels[key] = ui.label("—").classes(VALUE_CLASS)
-
-                _row("Presentations / rev", "ppr")
-                _row("BPS", "bps")
-                _row("Tip speed", "tip")
-                _row("Firing rate", "fr")
-                _row("% cap charged", "pct")
-                _row("Energy / bang", "e")
-                _row("Spark length", "spark")
+        with ui.column().classes("flex-1 min-w-[300px]"):
+            with section_card("Results", "assessment"):
+                grid = results_grid()
+                lbl_ppr = result_row(grid, "Presentations / rev")
+                lbl_bps = result_row(grid, "BPS")
+                lbl_tip = result_row(grid, "Tip speed")
+                lbl_fr = result_row(grid, "Firing rate")
+                lbl_pct = result_row(grid, "% cap charged")
+                lbl_e = result_row(grid, "Energy / bang")
+                lbl_spark = result_row(grid, "Spark length")
 
             def _refresh(_state: AppState):
                 out = _state.outputs.rotary_gap
                 if out is None:
                     return
-                labels["ppr"].text = f"{out.presentations_per_revolution}"
-                labels["bps"].text = f"{out.bps:.0f}"
-                labels["tip"].text = f"{out.rotational_speed_m_per_s:.1f} m/s"
-                labels["fr"].text = f"{out.firing_rate_s * 1e6:.2f} µs"
-                labels["pct"].text = f"{out.percent_cap_charged:.1f} %"
-                labels["e"].text = f"{out.effective_cap_energy_j:.3f} J"
-                labels["spark"].text = (
+                lbl_ppr.text = f"{out.presentations_per_revolution}"
+                lbl_bps.text = f"{out.bps:.0f}"
+                lbl_tip.text = f"{out.rotational_speed_m_per_s:.1f} m/s"
+                lbl_fr.text = f"{out.firing_rate_s * 1e6:.2f} \u00b5s"
+                lbl_pct.text = f"{out.percent_cap_charged:.1f} %"
+                lbl_e.text = f"{out.effective_cap_energy_j:.3f} J"
+                lbl_spark.text = (
                     f"{out.spark_length_m * 100:.1f} cm  "
                     f"({out.spark_length_m / 0.0254:.1f} in)"
                 )

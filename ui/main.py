@@ -20,15 +20,22 @@ from ui.components import (
     transformer_tab,
 )
 from ui.state import AppState
+from ui.theme import GLOBAL_CSS, SURFACE_BORDER
 
 
 def build_ui() -> AppState:
     state = AppState()
 
+    # Inject global design-system CSS.
+    ui.add_head_html(f"<style>{GLOBAL_CSS}</style>")
+
     header.render(state)
 
-    with ui.column().classes("w-full p-6"):
-        with ui.tabs().classes("w-full") as tabs:
+    # Centered max-width container.
+    with ui.column().classes("w-full max-w-6xl mx-auto px-6 py-4"):
+        with ui.tabs().classes("w-full").style(
+            f"background: transparent; border-bottom: 1px solid {SURFACE_BORDER};"
+        ) as tabs:
             sec = ui.tab("Secondary", icon="bolt")
             pri = ui.tab("Primary", icon="track_changes")
             top = ui.tab("Topload", icon="circle")
@@ -66,7 +73,7 @@ def run() -> None:
         port=8080,
         reload=False,
         dark=True,
-        favicon="⚡",
+        favicon="\u26a1",
     )
 
 
