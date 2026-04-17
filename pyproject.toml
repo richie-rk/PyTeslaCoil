@@ -40,6 +40,7 @@ dependencies = [
     "numpy>=1.24",
     "scipy>=1.10",
     "plotly>=5.15",
+    "reportlab>=4.0",
 ]
 
 [project.optional-dependencies]
@@ -48,9 +49,6 @@ dev = [
     "pytest-cov",
     "ruff",
     "mypy",
-]
-pdf = [
-    "reportlab>=4.0",
 ]
 
 [project.scripts]
