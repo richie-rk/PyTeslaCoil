@@ -1,16 +1,8 @@
----
-title: PyTeslaCoil
-emoji: ⚡
-colorFrom: yellow
-colorTo: yellow
-sdk: docker
-pinned: false
----
-
 # PyTeslaCoil
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://www.python.org/downloads/)
 [![Tests](https://img.shields.io/badge/Tests-73%20passed-brightgreen.svg)]()
+[![Hugging Face Spaces](https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-Spaces-blue)](https://huggingface.co/spaces/Richie-rk/pyteslacoil)
 
 An open-source Tesla coil design calculator — the modern Python replacement for JavaTC, featuring a pure-Python physics engine, Pydantic v2 models, and a NiceGUI web frontend.
 
