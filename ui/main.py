@@ -6,6 +6,8 @@ that ``pyproject.toml`` installs.
 
 from __future__ import annotations
 
+import os
+
 from nicegui import ui
 
 from ui.components import (
@@ -70,8 +72,10 @@ def run() -> None:
     build_ui()
     ui.run(
         title="PyTeslaCoil",
-        port=8080,
+        host=os.environ.get("HOST", "127.0.0.1"),
+        port=int(os.environ.get("PORT", "8080")),
         reload=False,
+        show=os.environ.get("HF_SPACE") is None,
         dark=True,
         favicon="\u26a1",
     )
