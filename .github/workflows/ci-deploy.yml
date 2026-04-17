@@ -28,6 +28,26 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Inject HF Spaces metadata into README
+        run: |
+          HF_META=$(cat <<'EOF'
+          ---
+          title: PyTeslaCoil
+          emoji: ⚡
+          colorFrom: yellow
+          colorTo: yellow
+          sdk: docker
+          pinned: false
+          ---
+
+          EOF
+          )
+          echo "$HF_META" | cat - README.md > README.tmp && mv README.tmp README.md
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git add README.md
+          git commit -m "ci: Inject HF Spaces metadata"
+
       - name: Push to Hugging Face Spaces
         run: |
           git remote add hf https://user:${{ secrets.HF_TOKEN }}@huggingface.co/spaces/Richie-rk/pyteslacoil
