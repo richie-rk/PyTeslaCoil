@@ -93,10 +93,8 @@ def render(state: AppState) -> None:
                 def _do_pdf():
                     try:
                         from pyteslacoil.export.pdf_export import to_pdf_bytes
-                        path = "pyteslacoil_export.pdf"
-                        with open(path, "wb") as f:
-                            f.write(to_pdf_bytes(state.design, state.outputs))
-                        ui.notify(f"Wrote {path}", type="positive")
+                        pdf_bytes = to_pdf_bytes(state.design, state.outputs)
+                        ui.download(pdf_bytes, "pyteslacoil_export.pdf")
                     except Exception as exc:
                         ui.notify(f"PDF export failed: {exc}", type="warning")
 
