@@ -25,7 +25,7 @@ def render(state: AppState) -> None:
 
     with ui.row().classes("w-full gap-4 flex-wrap md:flex-nowrap"):
         # ── Inputs ─────────────────────────────────────────────────
-        with ui.column().classes("flex-1 min-w-[300px]"):
+        with ui.column().classes("flex-1 sm:min-w-[300px]"):
             with section_card("Transformer", "electric_bolt"):
                 t_select = ui.select(
                     {
@@ -84,7 +84,7 @@ def render(state: AppState) -> None:
                 t_select.on_value_change(lambda *_: _apply())
 
         # ── Results ────────────────────────────────────────────────
-        with ui.column().classes("flex-1 min-w-[300px]"):
+        with ui.column().classes("flex-1 sm:min-w-[300px]"):
             with section_card("Results", "assessment"):
                 grid = results_grid()
                 lbl_vp = result_row(grid, "V_peak")

@@ -47,7 +47,7 @@ def render(state: AppState) -> None:
 
     with ui.row().classes("w-full gap-4 flex-wrap md:flex-nowrap mt-4"):
         # ── Detailed results ───────────────────────────────────────
-        with ui.column().classes("flex-[6] min-w-[300px] gap-4"):
+        with ui.column().classes("flex-[6] sm:min-w-[300px] gap-4"):
             # Secondary section
             with section_card("Secondary Results", "bolt"):
                 grid_sec = results_grid()
@@ -98,7 +98,7 @@ def render(state: AppState) -> None:
                     except Exception as exc:
                         ui.notify(f"PDF export failed: {exc}", type="warning")
 
-                with ui.row().classes("gap-3 mt-3"):
+                with ui.row().classes("gap-3 mt-3 flex-wrap"):
                     ui.button("Export Text", icon="description", on_click=_do_text).style(
                         f"background: {ACCENT}; color: #0f1117; border-radius: 6px;"
                     )
@@ -112,7 +112,7 @@ def render(state: AppState) -> None:
                     )
 
         # ── Visualizer ─────────────────────────────────────────────
-        with ui.column().classes("flex-[4] min-w-[300px]"):
+        with ui.column().classes("flex-[4] sm:min-w-[300px]"):
             with section_card("Coil Cross-Section", "straighten"):
                 svg_holder = ui.html("").classes("w-full")
 

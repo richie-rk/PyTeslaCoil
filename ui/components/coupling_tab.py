@@ -26,7 +26,7 @@ def _quality_color(k: float) -> str:
 def render(state: AppState) -> None:
     with ui.row().classes("w-full gap-4 flex-wrap md:flex-nowrap"):
         # ── Inputs ─────────────────────────────────────────────────
-        with ui.column().classes("flex-1 min-w-[300px]"):
+        with ui.column().classes("flex-1 sm:min-w-[300px]"):
             with section_card("Target Coupling", "link"):
                 desired = ui.number(
                     label="Desired k",
@@ -77,7 +77,7 @@ def render(state: AppState) -> None:
                 ).classes("mt-3")
 
         # ── Results ────────────────────────────────────────────────
-        with ui.column().classes("flex-1 min-w-[300px]"):
+        with ui.column().classes("flex-1 sm:min-w-[300px]"):
             with section_card("Computed Coupling", "insights"):
                 grid = results_grid()
                 lbl_k = result_row(grid, "Coupling coefficient k")

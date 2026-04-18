@@ -38,10 +38,10 @@ def render(state: AppState) -> None:
 
     with ui.row().classes("w-full gap-4 flex-wrap md:flex-nowrap"):
         # ── Inputs ─────────────────────────────────────────────────
-        with ui.column().classes("flex-[6] min-w-[300px]"):
+        with ui.column().classes("flex-[6] sm:min-w-[300px]"):
             with section_card("Primary Coil Design", "track_changes"):
-                with ui.row().classes("w-full gap-4"):
-                    with ui.column().classes("flex-1 gap-3"):
+                with ui.row().classes("w-full gap-4 flex-wrap"):
+                    with ui.column().classes("flex-1 min-w-[180px] gap-3"):
                         geom_select = ui.select(
                             ["Flat Spiral", "Helical", "Conical"],
                             value="Flat Spiral",
@@ -72,7 +72,7 @@ def render(state: AppState) -> None:
                             format="%.3f",
                         ).classes("w-full")
 
-                    with ui.column().classes("flex-1 gap-3"):
+                    with ui.column().classes("flex-1 min-w-[180px] gap-3"):
                         turns = ui.number(
                             label="Turns",
                             value=float(pri.turns),
@@ -143,7 +143,7 @@ def render(state: AppState) -> None:
                 auto.on_value_change(lambda *_: state.recalculate())
 
         # ── Results ────────────────────────────────────────────────
-        with ui.column().classes("flex-[4] min-w-[300px]"):
+        with ui.column().classes("flex-[4] sm:min-w-[300px]"):
             with section_card("Results", "assessment"):
                 grid = results_grid()
                 lbl_L = result_row(grid, "Coil inductance")

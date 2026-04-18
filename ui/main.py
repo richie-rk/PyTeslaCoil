@@ -34,7 +34,7 @@ def build_ui() -> AppState:
     header.render(state)
 
     # Centered max-width container.
-    with ui.column().classes("w-full max-w-6xl mx-auto px-6 py-4"):
+    with ui.column().classes("w-full max-w-6xl mx-auto px-3 sm:px-6 py-4"):
         with ui.tabs().classes("w-full").style(
             f"background: transparent; border-bottom: 1px solid {SURFACE_BORDER};"
         ) as tabs:

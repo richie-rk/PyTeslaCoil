@@ -16,7 +16,7 @@ def render(state: AppState) -> None:
 
     with ui.row().classes("w-full gap-4 flex-wrap md:flex-nowrap"):
         # ── Inputs ─────────────────────────────────────────────────
-        with ui.column().classes("flex-1 min-w-[300px]"):
+        with ui.column().classes("flex-1 sm:min-w-[300px]"):
             with section_card("Surrounding Environment", "public"):
                 gp = ui.number(
                     label=f"Ground plane radius ({unit}, 0 = none)",
@@ -54,7 +54,7 @@ def render(state: AppState) -> None:
                     w.on("update:model-value", lambda *_: _apply(), throttle=0.3)
 
         # ── Results ────────────────────────────────────────────────
-        with ui.column().classes("flex-1 min-w-[300px]"):
+        with ui.column().classes("flex-1 sm:min-w-[300px]"):
             with section_card("Computed Factors", "calculate"):
                 grid = results_grid()
                 lbl_f = result_row(grid, "Proximity correction")

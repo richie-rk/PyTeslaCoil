@@ -76,7 +76,7 @@ def render(state: AppState) -> None:
 def _render_static(state: AppState, unit: str) -> None:
     sg = state.design.static_gap
     with ui.row().classes("w-full gap-4 flex-wrap md:flex-nowrap"):
-        with ui.column().classes("flex-1 min-w-[300px]"):
+        with ui.column().classes("flex-1 sm:min-w-[300px]"):
             with section_card("Static Gap", "flash_on"):
                 n = ui.number(
                     label="# electrodes",
@@ -135,7 +135,7 @@ def _render_static(state: AppState, unit: str) -> None:
                 for w in (n, d, gap, vpk, cap, fline):
                     w.on("update:model-value", lambda *_: _apply(), throttle=0.3)
 
-        with ui.column().classes("flex-1 min-w-[300px]"):
+        with ui.column().classes("flex-1 sm:min-w-[300px]"):
             with section_card("Results", "assessment"):
                 grid = results_grid()
                 lbl_gap = result_row(grid, "Gap per electrode")
@@ -165,7 +165,7 @@ def _render_static(state: AppState, unit: str) -> None:
 def _render_rotary(state: AppState, unit: str) -> None:
     rg = state.design.rotary_gap
     with ui.row().classes("w-full gap-4 flex-wrap md:flex-nowrap"):
-        with ui.column().classes("flex-1 min-w-[300px]"):
+        with ui.column().classes("flex-1 sm:min-w-[300px]"):
             with section_card("Rotary Gap", "settings"):
                 ns = ui.number(
                     label="# stationary electrodes",
@@ -239,7 +239,7 @@ def _render_rotary(state: AppState, unit: str) -> None:
                 for w in (ns, nr, rpm, rd, sd, pdia, vpk, cap):
                     w.on("update:model-value", lambda *_: _apply(), throttle=0.3)
 
-        with ui.column().classes("flex-1 min-w-[300px]"):
+        with ui.column().classes("flex-1 sm:min-w-[300px]"):
             with section_card("Results", "assessment"):
                 grid = results_grid()
                 lbl_ppr = result_row(grid, "Presentations / rev")

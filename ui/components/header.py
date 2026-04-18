@@ -8,7 +8,9 @@ from ui.theme import ACCENT, SURFACE, SURFACE_BORDER, TEXT, TEXT_DIM
 
 
 def render(state: AppState) -> None:
-    with ui.header(elevated=False).classes("items-center justify-between px-6").style(
+    with ui.header(elevated=False).classes(
+        "items-center justify-between px-3 sm:px-6 gap-2 flex-wrap"
+    ).style(
         f"background: {SURFACE} !important; "
         f"border-bottom: 1px solid {SURFACE_BORDER} !important; "
         f"box-shadow: none !important;"
@@ -19,9 +21,9 @@ def render(state: AppState) -> None:
             ui.label("PyTeslaCoil").classes("text-xl font-bold tracking-wide").style(
                 f"color: {TEXT}; font-family: Inter, system-ui, sans-serif;"
             )
-            ui.label("Tesla Coil Design Calculator").classes("text-sm").style(
-                f"color: {TEXT_DIM};"
-            )
+            ui.label("Tesla Coil Design Calculator").classes(
+                "text-sm hidden md:block"
+            ).style(f"color: {TEXT_DIM};")
 
         # Center section — GitHub logo
         with ui.link(
