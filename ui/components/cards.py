@@ -56,7 +56,7 @@ def metric_card(
 
     Returns ``(value_label, unit_label)`` so callers can update them.
     """
-    with ui.card().classes("flex-1 min-w-[200px]").style(
+    with ui.card().classes("flex-1 min-w-[140px] sm:min-w-[200px]").style(
         f"background: {SURFACE}; border: 1px solid {SURFACE_BORDER}; "
         f"border-top: 4px solid {border_color}; border-radius: 8px; "
         f"padding: 20px; text-align: center;"
@@ -71,8 +71,10 @@ def metric_card(
 
 
 def results_grid() -> ui.element:
-    """A two-column grid for label/value result pairs."""
-    return ui.grid(columns=2).classes("w-full gap-x-4 gap-y-3")
+    """Label/value grid — single column on mobile, two columns from sm up."""
+    return ui.element("div").classes(
+        "grid grid-cols-1 sm:grid-cols-2 w-full gap-x-4 gap-y-3"
+    )
 
 
 def result_row(grid: ui.element, name: str) -> ui.label:

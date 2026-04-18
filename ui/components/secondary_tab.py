@@ -40,10 +40,10 @@ def render(state: AppState) -> None:
 
     with ui.row().classes("w-full gap-4 flex-wrap md:flex-nowrap"):
         # ── Inputs ─────────────────────────────────────────────────
-        with ui.column().classes("flex-[6] min-w-[300px]"):
+        with ui.column().classes("flex-[6] sm:min-w-[300px]"):
             with section_card("Secondary Coil Design", "bolt"):
-                with ui.row().classes("w-full gap-4"):
-                    with ui.column().classes("flex-1 gap-3"):
+                with ui.row().classes("w-full gap-4 flex-wrap"):
+                    with ui.column().classes("flex-1 min-w-[180px] gap-3"):
                         diam_in = ui.number(
                             label=f"Coil diameter ({unit})",
                             value=length_in(2 * sec.radius_1, unit),
@@ -63,7 +63,7 @@ def render(state: AppState) -> None:
                             format="%.3f",
                         ).classes("w-full")
 
-                    with ui.column().classes("flex-1 gap-3"):
+                    with ui.column().classes("flex-1 min-w-[180px] gap-3"):
                         turns = ui.number(
                             label="Number of turns",
                             value=float(sec.turns),
@@ -105,7 +105,7 @@ def render(state: AppState) -> None:
                 awg.on_value_change(lambda *_: _apply())
 
         # ── Results ────────────────────────────────────────────────
-        with ui.column().classes("flex-[4] min-w-[300px]"):
+        with ui.column().classes("flex-[4] sm:min-w-[300px]"):
             with section_card("Results", "assessment"):
                 grid = results_grid()
                 lbl_L = result_row(grid, "Inductance")
