@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "pyteslacoil"
-version = "0.1.0"
+version = "1.0.0"
 description = "Open-source Tesla coil design calculator — the modern replacement for JavaTC"
 readme = "README.md"
 license = { text = "MIT" }
