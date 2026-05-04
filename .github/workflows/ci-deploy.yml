@@ -67,7 +67,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Inject HF Spaces metadata into README
+      - name: Prepare HF Spaces deploy (inject metadata, drop binaries)
         run: |
           HF_META=$(cat <<'EOF'
           ---
@@ -82,12 +82,19 @@ jobs:
           EOF
           )
           echo "$HF_META" | cat - README.md > README.tmp && mv README.tmp README.md
+
+          # HF Spaces' pre-receive hook rejects binary blobs anywhere in the
+          # incoming pack, so we squash to a single orphan commit with the
+          # offending file removed.
+          rm -f docs/pyTesla-coil_header.png
+
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
-          git add README.md
-          git commit -m "ci: Inject HF Spaces metadata"
+          git checkout --orphan hf-deploy
+          git add -A
+          git commit -m "ci: Deploy to HF Spaces"
 
       - name: Push to Hugging Face Spaces
         run: |
           git remote add hf https://user:${{ secrets.HF_TOKEN }}@huggingface.co/spaces/Richie-rk/pyteslacoil
-          git push hf main --force
+          git push hf hf-deploy:main --force
