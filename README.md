@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/header_pyTeslacoil.png" alt="PyTeslaCoil" width="100%">
+</p>
+
 # PyTeslaCoil
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://www.python.org/downloads/)
@@ -423,7 +427,7 @@ PyTeslaCoil/
 - Inspired by [JavaTC](http://classictesla.com) by Bart Anderson — the standard Tesla coil calculator since ~2000
 - Physics formulas based on the work of Paul Nicholson (GEOTC/TSSP), R.G. Medhurst, H.A. Wheeler, F.W. Grover, and the global Tesla coil community
 - Built with [NiceGUI](https://nicegui.io/), [Pydantic](https://docs.pydantic.dev/), [NumPy](https://numpy.org/), [SciPy](https://scipy.org/), and [Plotly](https://plotly.com/)
-- For the detailed technical deep-dive, see [`docs/TECHNICAL_SUMMARY.md`](docs/TECHNICAL_SUMMARY.md)
+
 
 ---
 
