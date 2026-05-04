@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/header_pyTeslacoil.png" alt="PyTeslaCoil" width="100%">
+  <img src="docs/pyTesla-coil_header.png" alt="PyTeslaCoil" width="100%">
 </p>
 
 # PyTeslaCoil
