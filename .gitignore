@@ -33,11 +33,16 @@ ENV/
 .idea/
 *.swp
 
-# Tests
+# Tests and tooling caches
 .pytest_cache/
 .coverage
 htmlcov/
 .tox/
+.mypy_cache/
+.ruff_cache/
+
+# NiceGUI runtime storage
+.nicegui/
 
 # OS
 .DS_Store

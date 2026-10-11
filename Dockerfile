@@ -1,21 +1,31 @@
 FROM python:3.12-slim
 
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
+
 WORKDIR /app
 
-# Install dependencies first for better layer caching
-COPY requirements.txt pyproject.toml ./
-RUN pip install --no-cache-dir -r requirements.txt
+# Install the pinned dependencies first for better layer caching.
+# requirements.txt is generated from pyproject.toml (see its header).
+COPY requirements.txt ./
+RUN pip install -r requirements.txt
 
-# Copy application code
+# Then the application itself; its dependencies are already satisfied.
+COPY pyproject.toml README.md LICENSE ./
 COPY pyteslacoil/ pyteslacoil/
-COPY ui/ ui/
+RUN pip install --no-deps .
 
+# Run as an unprivileged user (Hugging Face Spaces runs containers as UID 1000).
+RUN useradd --create-home --uid 1000 appuser && chown appuser /app
+USER appuser
 
 # Hugging Face Spaces expects port 7860, bind to all interfaces
-ENV PORT=7860
-ENV HOST=0.0.0.0
-ENV HF_SPACE=1
+ENV PORT=7860 \
+    HOST=0.0.0.0 \
+    HF_SPACE=1
 
 EXPOSE 7860
 
-CMD ["python", "-m", "ui.main"]
+CMD ["pyteslacoil"]

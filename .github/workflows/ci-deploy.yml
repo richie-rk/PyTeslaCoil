@@ -3,9 +3,17 @@ name: CI, Publish & Deploy
 on:
   push:
     branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  test:
+  lint:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -17,12 +25,36 @@ jobs:
       - name: Install dependencies
         run: pip install -e ".[dev]"
 
+      - name: Ruff
+        run: ruff check .
+
+      - name: Mypy
+        run: mypy
+
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install dependencies
+        run: pip install -e ".[dev]"
+
       - name: Run tests
         run: pytest tests/ -v
 
   release:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-    needs: test
+    needs: [lint, test]
+    concurrency: release
     permissions:
       contents: write
     steps:
@@ -36,7 +68,7 @@ jobs:
           python-version: "3.12"
 
       - name: Install semantic release
-        run: pip install python-semantic-release
+        run: pip install "python-semantic-release>=10,<11"
 
       - name: Bump version and create tag
         id: semrel
@@ -45,27 +77,34 @@ jobs:
         run: |
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
+          before="$(git describe --tags --abbrev=0 2>/dev/null || true)"
           semantic-release version --no-vcs-release
-          echo "new_version=$(semantic-release version --print 2>/dev/null || echo '')" >> "$GITHUB_OUTPUT"
+          after="$(git describe --tags --abbrev=0 2>/dev/null || true)"
+          # Only a new tag means a new version was released.
+          if [ -n "$after" ] && [ "$after" != "$before" ]; then
+            echo "released=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "released=false" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Build package
+        if: steps.semrel.outputs.released == 'true'
         run: |
           pip install build
           python -m build
 
       - name: Publish to PyPI
-        if: steps.semrel.outputs.new_version != ''
+        if: steps.semrel.outputs.released == 'true'
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           password: ${{ secrets.PYPI_API_TOKEN }}
 
   deploy:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-    needs: test
+    needs: [lint, test]
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
       - name: Prepare HF Spaces deploy (inject metadata, drop binaries)
         run: |
@@ -84,9 +123,9 @@ jobs:
           echo "$HF_META" | cat - README.md > README.tmp && mv README.tmp README.md
 
           # HF Spaces' pre-receive hook rejects binary blobs anywhere in the
-          # incoming pack, so we squash to a single orphan commit with the
-          # offending file removed.
-          rm -f docs/pyTesla-coil_header.png
+          # incoming pack, so we push a single orphan commit without the
+          # documentation images (the README links to them on GitHub).
+          rm -rf docs
 
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
@@ -95,6 +134,9 @@ jobs:
           git commit -m "ci: Deploy to HF Spaces"
 
       - name: Push to Hugging Face Spaces
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
-          git remote add hf https://user:${{ secrets.HF_TOKEN }}@huggingface.co/spaces/Richie-rk/pyteslacoil
-          git push hf hf-deploy:main --force
+          # The token stays in the environment; it is not written into the remote URL.
+          git -c credential.helper='!f() { echo "username=user"; echo "password=${HF_TOKEN}"; }; f' \
+            push --force https://huggingface.co/spaces/Richie-rk/pyteslacoil hf-deploy:main
