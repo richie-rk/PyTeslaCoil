@@ -23,8 +23,9 @@ def test_nst_15_60():
     assert out.va_rating == pytest.approx(900.0, rel=1e-9)
     assert out.output_voltage_peak == pytest.approx(15_000 * math.sqrt(2), rel=1e-9)
     assert out.impedance_ohms == pytest.approx(15_000 / 0.060, rel=1e-9)
-    assert out.resonant_cap_size_f > 0
     assert out.ltr_cap_size_f == pytest.approx(out.resonant_cap_size_f * LTR_FACTOR)
+    assert out.input_current_a == pytest.approx(900.0 / 120.0)
+    assert out.resonant_cap_size_nf == pytest.approx(out.resonant_cap_size_f * 1e9)
 
 
 def test_resonant_cap_formula():

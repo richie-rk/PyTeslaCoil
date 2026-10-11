@@ -1,15 +1,16 @@
 """NiceGUI component modules.
 
-Each module exports a ``render(state)`` function that builds a tab panel
-bound to the application state.
+Each ``*_tab`` module exports a ``render(state)`` function that builds a tab
+panel bound to the per-browser-tab :class:`~pyteslacoil.ui.state.AppState`.
 """
 
-from ui.components import (
+from pyteslacoil.ui.components import (
     cards,
     coil_visualizer,
     coupling_tab,
     environment_tab,
     header,
+    inputs,
     presets_dialog,
     primary_tab,
     results_tab,
@@ -21,6 +22,7 @@ from ui.components import (
 
 __all__ = [
     "cards",
+    "inputs",
     "header",
     "secondary_tab",
     "primary_tab",

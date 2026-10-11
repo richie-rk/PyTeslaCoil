@@ -5,27 +5,34 @@ Each preset is a function that returns a fully-populated
 used by the UI's preset dialog.
 """
 
-from typing import Callable
+from collections.abc import Callable
+from typing import NamedTuple
 
 from pyteslacoil.models.coil_design import CoilDesign
 from pyteslacoil.presets.demo_drsstc import build as _drsstc
 from pyteslacoil.presets.demo_medium_sgtc import build as _medium
 from pyteslacoil.presets.demo_small_sgtc import build as _small
 
-AVAILABLE_PRESETS: dict[str, str] = {
-    "small_sgtc": "Small SGTC (Hackaday Mini)",
-    "medium_sgtc": "Medium SGTC (TCML reference)",
-    "drsstc": "DRSSTC (compact)",
+
+class Preset(NamedTuple):
+    label: str
+    build: Callable[[], CoilDesign]
+
+
+PRESETS: dict[str, Preset] = {
+    "small_sgtc": Preset("Small SGTC (Hackaday Mini)", _small),
+    "medium_sgtc": Preset("Medium SGTC (TCML reference)", _medium),
+    "drsstc": Preset("DRSSTC (compact)", _drsstc),
 }
 
-_BUILDERS: dict[str, Callable[[], CoilDesign]] = {
-    "small_sgtc": _small,
-    "medium_sgtc": _medium,
-    "drsstc": _drsstc,
-}
+AVAILABLE_PRESETS: dict[str, str] = {preset_id: p.label for preset_id, p in PRESETS.items()}
+"""Preset ID → display label."""
 
 
 def load_preset(preset_id: str) -> CoilDesign:
-    if preset_id not in _BUILDERS:
-        raise KeyError(f"Unknown preset: {preset_id}")
-    return _BUILDERS[preset_id]()
+    """Build a fresh copy of the preset with the given ID."""
+    try:
+        preset = PRESETS[preset_id]
+    except KeyError:
+        raise KeyError(f"Unknown preset: {preset_id!r}; available: {list(PRESETS)}") from None
+    return preset.build()

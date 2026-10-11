@@ -1,47 +1,67 @@
-"""PDF export — single-page design summary using reportlab.
+"""PDF export — the consolidated text report rendered with reportlab.
 
-reportlab is an *optional* dependency (declared in the ``pdf`` extra of
-``pyproject.toml``). If it isn't installed, calling :func:`to_pdf_bytes`
-raises an :class:`ImportError` with an actionable message.
+The report is laid out in a monospaced font and continues onto further
+pages when it does not fit on one; long lines are wrapped, not truncated.
 """
 
 from __future__ import annotations
 
+import textwrap
+from io import BytesIO
+
+from reportlab.lib.pagesizes import LETTER
+from reportlab.pdfgen import canvas
+
 from pyteslacoil.export.consolidated import to_text
 from pyteslacoil.models import CoilDesign, FullSystemOutput
 
+_MARGIN = 36
+_FONT = "Courier"
+_FONT_SIZE = 9
+_LINE_HEIGHT = 11
+_COURIER_ADVANCE_EM = 0.6  # every Courier glyph is 0.6 em wide
+
+# reportlab's built-in fonts only cover the WinAnsi (cp1252) character set.
+_REPLACEMENTS = {
+    "Ω": "ohm",
+    "≈": "~",
+    "≥": ">=",
+    "≤": "<=",
+    "→": "->",
+    "√": "sqrt",
+    "π": "pi",
+    "₀": "0",
+}
+
+
+def pdf_safe(text: str) -> str:
+    """Make ``text`` drawable with the built-in PDF fonts."""
+    for symbol, replacement in _REPLACEMENTS.items():
+        text = text.replace(symbol, replacement)
+    return text.encode("cp1252", errors="replace").decode("cp1252")
+
 
 def to_pdf_bytes(design: CoilDesign, outputs: FullSystemOutput) -> bytes:
-    try:
-        from reportlab.lib.pagesizes import LETTER
-        from reportlab.pdfgen import canvas
-    except ImportError as exc:  # pragma: no cover - optional dep
-        raise ImportError(
-            "PDF export requires reportlab. Install with `pip install reportlab` "
-            "or `pip install pyteslacoil[pdf]`."
-        ) from exc
+    title, *body = pdf_safe(to_text(design, outputs)).splitlines()
 
-    from io import BytesIO
-
-    text = to_text(design, outputs)
     buf = BytesIO()
-    c = canvas.Canvas(buf, pagesize=LETTER)
-
+    pdf = canvas.Canvas(buf, pagesize=LETTER)
+    pdf.setTitle(title)
     width, height = LETTER
-    margin = 36
-    c.setFont("Helvetica-Bold", 16)
-    c.drawString(margin, height - margin, f"PyTeslaCoil — {design.name}")
+    max_chars = int((width - 2 * _MARGIN) / (_COURIER_ADVANCE_EM * _FONT_SIZE))
 
-    c.setFont("Courier", 9)
-    y = height - margin - 24
-    line_height = 11
-    for raw_line in text.splitlines():
-        if y < margin:
-            c.showPage()
-            c.setFont("Courier", 9)
-            y = height - margin
-        c.drawString(margin, y, raw_line[:110])
-        y -= line_height
+    pdf.setFont("Helvetica-Bold", 16)
+    pdf.drawString(_MARGIN, height - _MARGIN, title)
+    pdf.setFont(_FONT, _FONT_SIZE)
+    y = height - _MARGIN - 24
+    for raw_line in body:
+        for line in textwrap.wrap(raw_line, max_chars, subsequent_indent=" " * 4) or [""]:
+            if y < _MARGIN:
+                pdf.showPage()
+                pdf.setFont(_FONT, _FONT_SIZE)
+                y = height - _MARGIN
+            pdf.drawString(_MARGIN, y, line)
+            y -= _LINE_HEIGHT
 
-    c.save()
+    pdf.save()
     return buf.getvalue()

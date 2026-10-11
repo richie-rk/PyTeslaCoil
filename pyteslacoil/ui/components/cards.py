@@ -1,25 +1,52 @@
-"""Shared card and result display components using DESIGN.md tokens."""
+"""Shared card and result display components."""
 
 from __future__ import annotations
 
+import math
+
 from nicegui import ui
 
-from ui.theme import (
+from pyteslacoil.ui.theme import (
     ACCENT,
+    BAD,
     CARD_STYLE,
+    GOOD,
+    LABEL_CLASS,
     LABEL_STYLE,
     MONO_STACK,
+    SECTION_TITLE_CLASS,
     SECTION_TITLE_STYLE,
     SURFACE,
     SURFACE_BORDER,
     TEXT_DIM,
     TEXT_MUTED,
+    VALUE_CLASS,
     VALUE_STYLE,
+    WARN,
 )
 
+DASH = "—"
 
-def section_card(title: str, icon: str | None = None):
-    """Context manager: a styled card with a section title header.
+
+def fmt(value: float | None, spec: str, suffix: str = "") -> str:
+    """Format a value for display; ``None`` and non-finite values show as a dash."""
+    if value is None or not math.isfinite(value):
+        return DASH
+    text = format(value, spec)
+    return f"{text} {suffix}" if suffix else text
+
+
+def coupling_quality(k: float) -> tuple[str, str]:
+    """``(label, color)`` rating a coupling coefficient for a spark-gap coil."""
+    if 0.10 <= k <= 0.25:
+        return "ok", GOOD
+    if 0.05 <= k < 0.10 or 0.25 < k <= 0.30:
+        return "marginal", WARN
+    return "out of range", BAD
+
+
+def section_card(title: str, icon: str | None = None) -> ui.card:
+    """A styled card with a section title header; use it as a context manager.
 
     Usage::
 
@@ -31,24 +58,13 @@ def section_card(title: str, icon: str | None = None):
         with ui.row().classes("items-center gap-2 mb-4"):
             if icon:
                 ui.icon(icon).classes("text-lg").style(f"color: {ACCENT};")
-            ui.label(title).classes("text-lg font-semibold").style(SECTION_TITLE_STYLE)
+            ui.label(title).classes(SECTION_TITLE_CLASS).style(SECTION_TITLE_STYLE)
     return card
-
-
-def result_value(label_text: str, initial: str = "\u2014") -> ui.label:
-    """Render a label/value pair in the standard results style.
-
-    Returns the value label so callers can update ``label.text`` reactively.
-    """
-    with ui.column().classes("gap-0"):
-        ui.label(label_text).classes("text-xs uppercase tracking-wider").style(LABEL_STYLE)
-        val = ui.label(initial).classes("text-xl font-bold").style(VALUE_STYLE)
-    return val
 
 
 def metric_card(
     title: str,
-    value: str = "\u2014",
+    value: str = DASH,
     unit: str = "",
     border_color: str = ACCENT,
 ) -> tuple[ui.label, ui.label]:
@@ -72,14 +88,22 @@ def metric_card(
 
 def results_grid() -> ui.element:
     """Label/value grid — single column on mobile, two columns from sm up."""
-    return ui.element("div").classes(
-        "grid grid-cols-1 sm:grid-cols-2 w-full gap-x-4 gap-y-3"
-    )
+    return ui.element("div").classes("grid grid-cols-1 sm:grid-cols-2 w-full gap-x-4 gap-y-3")
 
 
 def result_row(grid: ui.element, name: str) -> ui.label:
     """Add a label/value row inside an existing results_grid. Returns the value label."""
     with grid:
-        ui.label(name).classes("text-xs uppercase tracking-wider").style(LABEL_STYLE)
-        lbl = ui.label("\u2014").classes("text-xl font-bold").style(VALUE_STYLE)
+        ui.label(name).classes(LABEL_CLASS).style(LABEL_STYLE)
+        lbl = ui.label(DASH).classes(VALUE_CLASS).style(VALUE_STYLE)
     return lbl
+
+
+def result_rows(grid: ui.element, names: dict[str, str]) -> dict[str, ui.label]:
+    """Add several rows; ``names`` maps a key to its label text."""
+    return {key: result_row(grid, name) for key, name in names.items()}
+
+
+def clear_rows(rows: dict[str, ui.label]) -> None:
+    for label in rows.values():
+        label.text = DASH

@@ -1,16 +1,20 @@
 """NiceGUI entry point for PyTeslaCoil.
 
-Run with ``python -m ui.main`` or use the ``pyteslacoil`` console script
-that ``pyproject.toml`` installs.
+Run with ``python -m pyteslacoil.ui.main`` or use the ``pyteslacoil``
+console script that ``pyproject.toml`` installs.
+
+:func:`index` is the root page function: NiceGUI calls it for every browser
+tab, so each visitor gets an independent :class:`AppState`.
 """
 
 from __future__ import annotations
 
+import logging
 import os
 
 from nicegui import ui
 
-from ui.components import (
+from pyteslacoil.ui.components import (
     coupling_tab,
     environment_tab,
     header,
@@ -21,14 +25,13 @@ from ui.components import (
     topload_tab,
     transformer_tab,
 )
-from ui.state import AppState
-from ui.theme import GLOBAL_CSS, SURFACE_BORDER
+from pyteslacoil.ui.defaults import default_design
+from pyteslacoil.ui.state import AppState
+from pyteslacoil.ui.theme import GLOBAL_CSS, SURFACE_BORDER
 
 
-def build_ui() -> AppState:
-    state = AppState()
-
-    # Inject global design-system CSS.
+def build_ui(state: AppState) -> None:
+    """Build the whole page for ``state`` and run the first calculation."""
     ui.add_head_html(f"<style>{GLOBAL_CSS}</style>")
 
     header.render(state)
@@ -65,24 +68,30 @@ def build_ui() -> AppState:
             with ui.tab_panel(res):
                 results_tab.render(state)
 
-    return state
+    # One calculation once every tab has subscribed.
+    state.recalculate()
+
+
+def index() -> None:
+    """Root page: a fresh, independent design for every browser tab."""
+    build_ui(AppState(default_design()))
 
 
 def run() -> None:
-    build_ui()
+    logging.basicConfig(level=logging.INFO)
     ui.run(
+        index,
         title="PyTeslaCoil",
         host=os.environ.get("HOST", "127.0.0.1"),
         port=int(os.environ.get("PORT", "8080")),
         reload=False,
         show=os.environ.get("HF_SPACE") is None,
         dark=True,
-        favicon="\u26a1",
+        favicon="⚡",
     )
 
 
-# NiceGUI's auto-reload mechanism imports the module twice — once as
-# ``__main__`` and once as ``__mp_main__``. The dual condition guards
-# against double-instantiation while still allowing both modes to work.
+# ``__mp_main__`` is the module name in a multiprocessing child (used by
+# NiceGUI's native mode), which must start the app as well.
 if __name__ in {"__main__", "__mp_main__"}:
     run()

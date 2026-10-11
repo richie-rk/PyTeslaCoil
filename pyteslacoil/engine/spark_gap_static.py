@@ -7,16 +7,21 @@ The classic Tesla coil "multi-gap" is the canonical example.
 References
 ----------
 - J.M. Meek and J.D. Craggs, "Electrical Breakdown of Gases" (1953)
-- Paschen's law (~1889) and the empirical air-breakdown fits used by
-  JavaTC and the Tesla coil mailing list FAQ.
+- Empirical uniform-field air-breakdown fit used by JavaTC and the Tesla
+  coil mailing list FAQ.
 """
 
 from __future__ import annotations
 
 import math
 
-from pyteslacoil.constants import PI
+from pyteslacoil.constants import DEFAULT_LINE_FREQUENCY_HZ, PI
+from pyteslacoil.engine._checks import require_set
+from pyteslacoil.engine.spark_length import spark_length_from_energy, terminal_voltage_estimate
 from pyteslacoil.models.spark_gap_model import StaticGapInput, StaticGapOutput
+
+ARC_VOLTAGE_V_PER_M: float = 3_000.0
+"""Typical voltage drop along a conducting spark-gap arc (~30 V/cm)."""
 
 
 def air_breakdown_voltage(gap_m: float) -> float:
@@ -31,75 +36,57 @@ def air_breakdown_voltage(gap_m: float) -> float:
     if gap_m <= 0:
         return 0.0
     g_cm = gap_m * 100.0
-    v_kv = 24.22 * g_cm + 6.08 * math.sqrt(g_cm)
-    return v_kv * 1000.0
+    return (24.22 * g_cm + 6.08 * math.sqrt(g_cm)) * 1000.0
 
 
 def calculate_static_gap(inp: StaticGapInput) -> StaticGapOutput:
     """Compute static-gap behavior.
 
-    Inputs include the transformer peak voltage and tank capacitance, so
-    we can also estimate cap-charge percentage and energy per bang.
+    The charging voltage and tank capacitance must be set on ``inp`` (the
+    system calculator fills them in from the design). A static gap fires
+    once per half line cycle, when the rising charging voltage reaches the
+    breakdown voltage; if the breakdown voltage exceeds the peak voltage the
+    gap never fires and every per-bang output is zero.
     """
-    n_gaps = max(inp.num_electrodes - 1, 1)
+    v_peak = require_set(inp.transformer_voltage_peak, "transformer_voltage_peak")
+    c_tank = require_set(inp.tank_capacitance, "tank_capacitance")
+    f_line = inp.line_frequency_hz or DEFAULT_LINE_FREQUENCY_HZ
+
+    n_gaps = inp.num_electrodes - 1
     gap_per_electrode = inp.total_gap_spacing / n_gaps
 
-    # Each gap fires when its threshold is reached. The total breakdown
-    # voltage is just the sum.
+    # Each gap fires when its threshold is reached; the series stack needs the sum.
     v_break_per = air_breakdown_voltage(gap_per_electrode)
     v_break_total = v_break_per * n_gaps
 
-    # Arc voltage during conduction. Empirically ~30 V/cm for an arc.
-    arc_voltage = 30.0 * gap_per_electrode * 100.0 * n_gaps
+    arc_voltage = ARC_VOLTAGE_V_PER_M * inp.total_gap_spacing
 
-    voltage_gradient = (
-        v_break_per / gap_per_electrode if gap_per_electrode > 0 else 0.0
-    )
-    arc_voltage_per_unit = (
-        arc_voltage / inp.total_gap_spacing if inp.total_gap_spacing > 0 else 0.0
-    )
+    fires = v_break_total <= v_peak
+    # The capacitor charges to V_break before the gap fires (or to V_peak if it never does).
+    percent = 100.0 * min(1.0, v_break_total / v_peak)
 
-    # Percent charged: V_break / V_peak (capped at 100 %).
-    if inp.transformer_voltage_peak > 0:
-        percent = min(100.0, 100.0 * v_break_total / inp.transformer_voltage_peak)
+    if fires:
+        # Phase of the charging sine wave at which V reaches V_break.
+        phase = math.asin(v_break_total / v_peak)
+        time_to_arc: float | None = phase / (2.0 * PI * f_line)
+        bps = 2.0 * f_line
+        energy = 0.5 * c_tank * v_break_total * v_break_total
     else:
-        percent = 0.0
-
-    # Time to arc — depends on charging waveform; for a 60 Hz sine the
-    # half cycle is 1/(2 f_line). The phase angle at which V reaches
-    # V_break is asin(V_break / V_peak).
-    if inp.transformer_voltage_peak > 0 and v_break_total <= inp.transformer_voltage_peak:
-        phase = math.asin(v_break_total / inp.transformer_voltage_peak)
-        time_to_arc = phase / (2.0 * PI * inp.line_frequency_hz)
-    else:
-        time_to_arc = 1.0 / (2.0 * inp.line_frequency_hz)
-
-    # BPS: a static gap fires twice per line cycle in steady state.
-    bps = 2.0 * inp.line_frequency_hz
-
-    # Effective cap energy at fire.
-    v_eff = inp.transformer_voltage_peak * (percent / 100.0)
-    energy = 0.5 * inp.tank_capacitance * v_eff * v_eff
-
-    # Terminal voltage and spark length using Freau (see spark_length).
-    from pyteslacoil.engine.spark_length import (
-        spark_length_from_energy,
-        terminal_voltage_estimate,
-    )
-
-    v_term = terminal_voltage_estimate(energy)
-    spark_len = spark_length_from_energy(bps, energy)
+        time_to_arc = None
+        bps = 0.0
+        energy = 0.0
 
     return StaticGapOutput(
         gap_per_electrode_m=gap_per_electrode,
         breakdown_voltage_v=v_break_total,
         arc_voltage_v=arc_voltage,
-        voltage_gradient_v_per_m=voltage_gradient,
-        arc_voltage_per_unit_v_per_m=arc_voltage_per_unit,
+        voltage_gradient_v_per_m=v_break_per / gap_per_electrode,
+        arc_voltage_per_unit_v_per_m=arc_voltage / inp.total_gap_spacing,
+        fires=fires,
         percent_cap_charged=percent,
         time_to_arc_s=time_to_arc,
         bps=bps,
         effective_cap_energy_j=energy,
-        terminal_voltage_v=v_term,
-        spark_length_m=spark_len,
+        terminal_voltage_v=terminal_voltage_estimate(energy),
+        spark_length_m=spark_length_from_energy(bps, energy),
     )

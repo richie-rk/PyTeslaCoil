@@ -23,6 +23,7 @@ def test_capacitance_units():
     assert units.farads_to_pf(1e-12) == pytest.approx(1.0)
     assert units.pf_to_farads(1.0) == pytest.approx(1e-12)
     assert units.farads_to_uf(1e-6) == pytest.approx(1.0)
+    assert units.farads_to_nf(1e-9) == pytest.approx(1.0)
 
 
 def test_inductance_units():
@@ -34,3 +35,15 @@ def test_length_in_helper():
     assert units.length_in(0.0254, "inches") == pytest.approx(1.0)
     assert units.length_in(0.01, "cm") == pytest.approx(1.0)
     assert units.length_to_meters(1.0, "inches") == pytest.approx(0.0254)
+    assert units.length_symbol("inches") == "in"
+    assert units.length_symbol("cm") == "cm"
+
+
+def test_unknown_length_unit_raises():
+    with pytest.raises(ValueError):
+        units.length_in(1.0, "furlongs")
+
+
+def test_lengths_equal_tolerance():
+    assert units.lengths_equal(0.05, 0.05 * (1 + 1e-9))
+    assert not units.lengths_equal(0.05, 0.0501)

@@ -1,5 +1,5 @@
 {
-  "$schema_note": "Reference outputs from JavaTC for known coil designs. The 'expected_outputs' values are filled in once a JavaTC run has been done with the same inputs. While unfilled, they exist as placeholders so the test harness can be wired up.",
+  "$schema_note": "Reference outputs from JavaTC for known coil designs, consumed by tests/test_javatc_reference.py. Inputs are in inches (capacitance in µF). Fill in an expected value after running JavaTC with exactly these inputs; null values are skipped.",
   "tolerance_percent_default": 3.0,
   "test_cases": [
     {
@@ -34,6 +34,7 @@
         "secondary_resonant_freq_khz": null,
         "secondary_inductance_mh": null,
         "secondary_self_capacitance_pf": null,
+        "system_resonant_freq_khz": null,
         "primary_resonant_freq_khz": null,
         "coupling_coefficient": null
       }
@@ -67,7 +68,12 @@
         }
       },
       "expected_outputs": {
-        "note": "Fill these from running JavaTC with these exact inputs"
+        "secondary_resonant_freq_khz": null,
+        "secondary_inductance_mh": null,
+        "secondary_self_capacitance_pf": null,
+        "system_resonant_freq_khz": null,
+        "primary_resonant_freq_khz": null,
+        "coupling_coefficient": null
       }
     }
   ]

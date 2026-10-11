@@ -1,7 +1,12 @@
-"""Medium SGTC preset — modeled on a typical TCML / pupman build."""
+"""Medium SGTC preset — modeled on a typical TCML / pupman build.
+
+The rotary gap takes its charging voltage and tank capacitance from the
+transformer and primary.
+"""
 
 from pyteslacoil.models.coil_design import (
     CoilDesign,
+    SparkGapType,
     ToploadType,
     TransformerType,
     UnitSystem,
@@ -55,9 +60,8 @@ def build() -> CoilDesign:
             rotating_electrode_diameter=inches_to_meters(0.25),
             stationary_electrode_diameter=inches_to_meters(0.25),
             rotating_path_diameter=inches_to_meters(8.0),
-            transformer_voltage_peak=15_000.0 * 1.4142,
-            tank_capacitance=nf_to_farads(7.7),
         ),
+        spark_gap_type=SparkGapType.ROTARY,
         environment=EnvironmentInput(),
         desired_coupling=0.18,
     )

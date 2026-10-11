@@ -16,25 +16,24 @@ LTR_FACTOR: float = 1.6
 
 
 def calculate_transformer(inp: TransformerInput) -> TransformerOutput:
-    v_peak = inp.output_voltage * math.sqrt(2.0)
-    va = inp.output_voltage * inp.output_current
-    impedance = inp.output_voltage / inp.output_current if inp.output_current > 0 else 0.0
-    max_current = inp.output_current * math.sqrt(2.0)
+    """Peak voltage, VA rating, impedance and recommended tank capacitance.
 
-    if impedance > 0 and inp.line_frequency_hz > 0:
-        c_res = 1.0 / (2.0 * PI * inp.line_frequency_hz * impedance)
-    else:
-        c_res = 0.0
-    c_ltr = c_res * LTR_FACTOR
+    The transformer is modelled as a current-limited source with impedance
+    ``V_out / I_out``; the resonant capacitor matches that impedance at the
+    line frequency, ``C = 1 / (2π f Z)``. Input power assumes unity power
+    factor (a power-factor-corrected supply), so it equals the VA rating.
+    """
+    va = inp.output_voltage * inp.output_current
+    impedance = inp.output_voltage / inp.output_current
+    c_res = 1.0 / (2.0 * PI * inp.line_frequency_hz * impedance)
 
     return TransformerOutput(
-        output_voltage_peak=v_peak,
+        output_voltage_peak=inp.output_voltage * math.sqrt(2.0),
         va_rating=va,
         impedance_ohms=impedance,
-        max_charging_current_a=max_current,
+        max_charging_current_a=inp.output_current * math.sqrt(2.0),
         resonant_cap_size_f=c_res,
-        resonant_cap_size_nf=c_res * 1e9,
-        ltr_cap_size_f=c_ltr,
-        ltr_cap_size_nf=c_ltr * 1e9,
+        ltr_cap_size_f=c_res * LTR_FACTOR,
         input_power_w=va,
+        input_current_a=va / inp.input_voltage,
     )

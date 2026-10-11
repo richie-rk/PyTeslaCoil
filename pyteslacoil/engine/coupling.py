@@ -8,11 +8,13 @@ energy can be transferred to the secondary per RF cycle:
 The mutual inductance ``M`` is computed by the **filamentary** method:
 each turn of each coil is treated as a thin circular loop and the mutual
 inductance between every pair of loops is computed using complete elliptic
-integrals K and E (the closed-form solution due to Maxwell). The total is
-then summed.
+integrals K and E (the closed-form solution due to Maxwell). A fractional
+last turn is a loop weighted by its fraction, so ``M`` is continuous in the
+turn count. ``L_pri`` is the winding inductance without the leads, which do
+not couple to the secondary.
 
-This is O(N_pri · N_sec) which is fine for typical Tesla coils
-(N_sec ≤ 2000, N_pri ≤ 30 → 60 000 pairs ≈ <50 ms).
+This is O(N_pri · N_sec), vectorised with NumPy, which is fast for typical
+Tesla coils (N_sec ≤ 2000, N_pri ≤ 30).
 
 References
 ----------
@@ -24,59 +26,29 @@ References
 from __future__ import annotations
 
 import math
-from typing import Tuple
 
 import numpy as np
 from scipy.optimize import brentq
-from scipy.special import ellipe, ellipk
 
-from pyteslacoil.constants import MU_0, PI
-from pyteslacoil.engine.primary import calculate_primary
+from pyteslacoil.engine.inductance import Filaments, filament_mutual_inductance, winding_filaments
+from pyteslacoil.engine.primary import calculate_primary, primary_filaments
 from pyteslacoil.engine.secondary import calculate_secondary
 from pyteslacoil.models.coupling_model import CouplingInput, CouplingOutput
 from pyteslacoil.models.primary_model import PrimaryInput
 from pyteslacoil.models.secondary_model import SecondaryInput
 
-
-def _filaments_for_primary(p: PrimaryInput) -> Tuple[np.ndarray, np.ndarray]:
-    n = max(1, int(round(p.turns)))
-    radii = np.linspace(p.radius_1, p.radius_2, n)
-    heights = np.linspace(p.height_1, p.height_2, n)
-    return radii, heights
+_SCAN_SAMPLES = 81
 
 
-def _filaments_for_secondary(s: SecondaryInput) -> Tuple[np.ndarray, np.ndarray]:
-    n = max(1, int(s.turns))
-    radii = np.linspace(s.radius_1, s.radius_2, n)
-    heights = np.linspace(s.height_1, s.height_2, n)
-    return radii, heights
-
-
-def _mutual_pair_vec(
-    r_pri: np.ndarray, h_pri: np.ndarray, r_sec: np.ndarray, h_sec: np.ndarray
-) -> float:
-    """Vectorized total mutual inductance over all (i, j) filament pairs.
-
-    Returns sum_{i,j} M(r_pri[i], r_sec[j], |h_pri[i] - h_sec[j]|).
-    """
-    # Build broadcast 2D arrays.
-    R1 = r_pri[:, None]      # shape (Np, 1)
-    R2 = r_sec[None, :]      # shape (1, Ns)
-    D = np.abs(h_pri[:, None] - h_sec[None, :])  # shape (Np, Ns)
-
-    denom = (R1 + R2) ** 2 + D * D
-    k_sq = 4.0 * R1 * R2 / denom
-    # Numerical safety:
-    np.clip(k_sq, 0.0, 1.0 - 1e-15, out=k_sq)
-    k = np.sqrt(k_sq)
-
-    K = ellipk(k_sq)
-    E = ellipe(k_sq)
-
-    factor = MU_0 * np.sqrt(R1 * R2)
-    M_pair = factor * ((2.0 / k - k) * K - (2.0 / k) * E)
-
-    return float(M_pair.sum())
+def secondary_filaments(secondary: SecondaryInput) -> Filaments:
+    """The secondary winding as circular filaments (one per turn)."""
+    return winding_filaments(
+        secondary.radius_1,
+        secondary.radius_2,
+        secondary.height_1,
+        secondary.height_2,
+        secondary.turns,
+    )
 
 
 def mutual_inductance(primary: PrimaryInput, secondary: SecondaryInput) -> float:
@@ -85,104 +57,99 @@ def mutual_inductance(primary: PrimaryInput, secondary: SecondaryInput) -> float
     Both coils are assumed coaxial and concentric. ``height_1`` /
     ``height_2`` are measured along a common vertical axis.
     """
-    r_pri, h_pri = _filaments_for_primary(primary)
-    r_sec, h_sec = _filaments_for_secondary(secondary)
-    return _mutual_pair_vec(r_pri, h_pri, r_sec, h_sec)
+    return filament_mutual_inductance(primary_filaments(primary), secondary_filaments(secondary))
 
 
 def coupling_coefficient(
     primary: PrimaryInput, secondary: SecondaryInput
-) -> Tuple[float, float, float, float]:
+) -> tuple[float, float, float, float]:
     """Return ``(M, k, L_pri, L_sec)`` for the given coil pair."""
-    L_pri = calculate_primary(primary).inductance_h
-    L_sec = calculate_secondary(secondary).inductance_h
-    M = mutual_inductance(primary, secondary)
-    if L_pri <= 0 or L_sec <= 0:
-        return M, 0.0, L_pri, L_sec
-    k = M / math.sqrt(L_pri * L_sec)
-    return M, k, L_pri, L_sec
+    l_pri = calculate_primary(primary).inductance_h
+    l_sec = calculate_secondary(secondary).inductance_h
+    m = mutual_inductance(primary, secondary)
+    return m, m / math.sqrt(l_pri * l_sec), l_pri, l_sec
 
 
-def _shifted_primary(primary: PrimaryInput, dz: float) -> PrimaryInput:
-    return primary.model_copy(
-        update={"height_1": primary.height_1 + dz, "height_2": primary.height_2 + dz}
-    )
+def shift_primary(primary: PrimaryInput, dz: float) -> PrimaryInput:
+    """A validated copy of ``primary`` moved vertically by ``dz`` (heights kept ≥ 0)."""
+    data = primary.model_dump()
+    data["height_1"] = max(0.0, primary.height_1 + dz)
+    data["height_2"] = max(0.0, primary.height_2 + dz)
+    return PrimaryInput.model_validate(data)
 
 
 def _adjust_primary_for_k(
     primary: PrimaryInput, secondary: SecondaryInput, target_k: float
-) -> Tuple[PrimaryInput, bool]:
+) -> tuple[PrimaryInput, bool]:
     """Shift the primary coil vertically until its k matches the target.
 
-    Strategy: do a coarse scan over a vertical range that brackets the
-    secondary, then locate the first sign change of ``k(dz) − target`` and
-    refine with brentq. The k-vs-dz curve is generally unimodal (it peaks
-    when the primary sits near the secondary base and falls off in either
-    direction), so a coarse scan reliably catches the closest root.
+    Strategy: scan a vertical range that brackets the secondary (without
+    moving the primary below the ground plane), locate the sign change of
+    ``k(dz) − target`` closest to the current position, and refine it with
+    brentq. A vertical shift changes neither coil's self-inductance, so only
+    the mutual inductance is recomputed.
     """
-    sec_height = secondary.height_2 - secondary.height_1
-    span = 2.0 * max(sec_height, 0.1)
+    f_pri = primary_filaments(primary)
+    f_sec = secondary_filaments(secondary)
+    l_pri = calculate_primary(primary).inductance_h
+    l_sec = calculate_secondary(secondary).inductance_h
+    norm = math.sqrt(l_pri * l_sec)
 
     def residual(dz: float) -> float:
-        shifted = _shifted_primary(primary, dz)
-        _, k, _, _ = coupling_coefficient(shifted, secondary)
-        return k - target_k
+        return filament_mutual_inductance(f_pri, f_sec, dz) / norm - target_k
 
-    # Coarse scan with 41 samples across the span.
-    n = 41
-    samples = np.linspace(-span, +span, n)
+    span = 2.0 * max(secondary.height_2 - secondary.height_1, 0.1)
+    dz_min = max(-span, -min(primary.height_1, primary.height_2))
+    samples = np.linspace(dz_min, span, _SCAN_SAMPLES)
     residuals = np.array([residual(float(z)) for z in samples])
 
-    # Find any adjacent pair of opposite signs.
-    sign_changes = np.where(residuals[:-1] * residuals[1:] < 0.0)[0]
-    if len(sign_changes) == 0:
+    exact = np.flatnonzero(residuals == 0.0)
+    brackets = np.flatnonzero(residuals[:-1] * residuals[1:] < 0.0)
+    candidates = [(abs(samples[i]), float(samples[i])) for i in exact]
+    for i in brackets:
+        root = brentq(residual, float(samples[i]), float(samples[i + 1]), xtol=1e-7, maxiter=200)
+        candidates.append((abs(root), float(root)))
+    if not candidates:
         return primary, False
-
-    # Pick the sign change closest to dz=0 (i.e. the smallest move).
-    abs_z = [abs(0.5 * (samples[i] + samples[i + 1])) for i in sign_changes]
-    best = sign_changes[int(np.argmin(abs_z))]
-
-    dz_solved = brentq(
-        residual, float(samples[best]), float(samples[best + 1]),
-        xtol=1e-6, maxiter=200,
-    )
-    return _shifted_primary(primary, float(dz_solved)), True
+    _, dz_solved = min(candidates)
+    return shift_primary(primary, dz_solved), True
 
 
-def calculate_coupling(inp: CouplingInput) -> CouplingOutput:
-    M, k, L_pri, L_sec = coupling_coefficient(inp.primary, inp.secondary)
+def calculate_coupling(
+    inp: CouplingInput, operating_frequency_hz: float | None = None
+) -> CouplingOutput:
+    """Mutual inductance, coupling and energy-transfer time of a coil pair.
 
-    sec_out = calculate_secondary(inp.secondary)
-    f_res = sec_out.resonant_frequency_hz
-
-    if k > 0 and f_res > 0:
-        t_transfer = 1.0 / (2.0 * k * f_res)
-        cycles = 1.0 / (2.0 * k)
-    else:
-        t_transfer = float("inf")
-        cycles = float("inf")
-
-    adjusted_h1 = None
-    adjusted_h2 = None
-    converged = True
+    ``operating_frequency_hz`` is the frequency used for the energy-transfer
+    time; it defaults to the bare secondary resonance (pass the loaded
+    system frequency when a topload is present).
+    """
+    primary = inp.primary
+    converged: bool | None = None
+    adjusted_h1 = adjusted_h2 = None
     if inp.auto_adjust_height and inp.desired_k is not None:
-        adjusted, converged = _adjust_primary_for_k(
-            inp.primary, inp.secondary, inp.desired_k
-        )
-        adjusted_h1 = adjusted.height_1
-        adjusted_h2 = adjusted.height_2
-        # Recompute k for the adjusted geometry so the user sees the result.
+        primary, converged = _adjust_primary_for_k(inp.primary, inp.secondary, inp.desired_k)
         if converged:
-            M, k, L_pri, L_sec = coupling_coefficient(adjusted, inp.secondary)
+            adjusted_h1, adjusted_h2 = primary.height_1, primary.height_2
+
+    m, k, l_pri, l_sec = coupling_coefficient(primary, inp.secondary)
+
+    f_op = operating_frequency_hz
+    if f_op is None:
+        f_op = calculate_secondary(inp.secondary).resonant_frequency_hz
+
+    t_transfer = cycles = None
+    if k > 0:
+        cycles = 1.0 / (2.0 * k)
+        t_transfer = cycles / f_op
 
     return CouplingOutput(
-        mutual_inductance_h=M,
-        mutual_inductance_uh=M * 1e6,
+        mutual_inductance_h=m,
         coupling_coefficient=k,
         energy_transfer_time_s=t_transfer,
         energy_transfer_cycles=cycles,
-        primary_inductance_h=L_pri,
-        secondary_inductance_h=L_sec,
+        primary_inductance_h=l_pri,
+        secondary_inductance_h=l_sec,
         adjusted_primary_height_1_m=adjusted_h1,
         adjusted_primary_height_2_m=adjusted_h2,
         adjustment_converged=converged,

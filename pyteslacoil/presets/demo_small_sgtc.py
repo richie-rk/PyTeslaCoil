@@ -1,10 +1,15 @@
 """Small SGTC preset — modeled on the Hackaday Mini SGTC build.
 
 Reference: https://hackaday.io/project/182677
+
+The primary is tapped at the turn count that tunes it to the loaded
+secondary; the static gap takes its charging voltage and tank capacitance
+from the transformer and primary.
 """
 
 from pyteslacoil.models.coil_design import (
     CoilDesign,
+    SparkGapType,
     ToploadType,
     TransformerType,
     UnitSystem,
@@ -34,8 +39,8 @@ def build() -> CoilDesign:
             radius_1=inches_to_meters(1.5),
             radius_2=inches_to_meters(1.5),
             height_1=inches_to_meters(2.83),
-            height_2=inches_to_meters(3.368),
-            turns=11.0339,
+            height_2=inches_to_meters(3.48),
+            turns=13.3306,
             wire_diameter=inches_to_meters(0.0253),
             capacitance=nf_to_farads(1.3),
         ),
@@ -55,9 +60,8 @@ def build() -> CoilDesign:
             num_electrodes=3,
             electrode_diameter=inches_to_meters(0.5),
             total_gap_spacing=inches_to_meters(0.10),
-            transformer_voltage_peak=9_000.0 * 1.4142,
-            tank_capacitance=nf_to_farads(1.3),
         ),
+        spark_gap_type=SparkGapType.STATIC,
         environment=EnvironmentInput(),
         desired_coupling=0.16,
     )

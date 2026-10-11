@@ -1,21 +1,19 @@
 """SVG cross-section visualizer for the coil system.
 
-Returns an SVG string that the results tab embeds via :func:`ui.html`.
-The drawing is a professional schematic side-view with:
-- Subtle grid background
-- Proportional secondary, primary, topload, and ground plane
-- Dimension lines with arrow markers
-- Component labels
-- Legend strip
+Returns an SVG string that the results tab embeds. The drawing is a
+schematic side view with:
 
-Uses DESIGN.md visualization palette.
+- a subtle grid background
+- proportional secondary (conical secondaries as trapezoids), primary,
+  topload and ground plane
+- dimension lines with arrow markers, labelled in the design's unit system
+- component labels and a legend strip
 """
 
 from __future__ import annotations
 
-from pyteslacoil.models.coil_design import ToploadType
-from ui.state import AppState
-from ui.theme import (
+from pyteslacoil.models import CoilDesign, PrimaryInput, ToploadType
+from pyteslacoil.ui.theme import (
     TEXT_DIM,
     TEXT_MUTED,
     VIS_DIAGRAM_BG,
@@ -25,10 +23,12 @@ from ui.theme import (
     VIS_SECONDARY,
     VIS_TOPLOAD,
 )
+from pyteslacoil.units import length_in, length_symbol, lengths_equal
 
 CANVAS_W = 520
 CANVAS_H = 520
 PADDING = 50
+LEGEND_H = 30
 
 # Arrow marker definition for dimension lines.
 _DEFS = f"""
@@ -60,9 +60,7 @@ def _grid_lines() -> str:
     return "".join(lines)
 
 
-def _dim_line(
-    x1: float, y1: float, x2: float, y2: float, label: str, offset: float = 0
-) -> str:
+def _dim_line(x1: float, y1: float, x2: float, y2: float, label: str, offset: float = 0) -> str:
     """Render a dimension line with arrows and a label."""
     mx, my = (x1 + x2) / 2 + offset, (y1 + y2) / 2
     return (
@@ -71,6 +69,13 @@ def _dim_line(
         f'marker-start="url(#arr-rev)" marker-end="url(#arr)"/>'
         f'<text x="{mx}" y="{my - 4}" font-size="10" fill="{TEXT_DIM}" '
         f'text-anchor="middle" font-family="\'JetBrains Mono\', monospace">{label}</text>'
+    )
+
+
+def _label(x: float, y: float, text: str, color: str) -> str:
+    return (
+        f'<text x="{x}" y="{y}" font-size="11" fill="{color}" '
+        f'font-family="Inter, sans-serif" font-weight="500">{text}</text>'
     )
 
 
@@ -98,34 +103,37 @@ def _legend() -> str:
     return "".join(parts)
 
 
-def build(state: AppState) -> str:
-    sec = state.design.secondary
-    pri = state.design.primary
-    top = state.design.topload
+def build(design: CoilDesign, primary: PrimaryInput | None = None) -> str:
+    """SVG cross-section of ``design``; ``primary`` overrides the drawn primary
+    (e.g. the auto-tuned geometry)."""
+    sec = design.secondary
+    pri = primary or design.primary
+    top = design.topload
+    unit = design.unit_system.value
+    symbol = length_symbol(unit)
+
+    def length_label(value_m: float) -> str:
+        return f"{length_in(value_m, unit):.1f} {symbol}"
 
     # Determine bounding box across all elements (in meters).
     extents_x: list[float] = []
     extents_y: list[float] = [0.0]
 
     if sec is not None:
-        extents_x += [-sec.radius_1, -sec.radius_2, sec.radius_1, sec.radius_2]
+        r_max = max(sec.radius_1, sec.radius_2)
+        extents_x += [-r_max, r_max]
         extents_y += [sec.height_1, sec.height_2]
     if pri is not None:
-        extents_x += [-pri.radius_2, pri.radius_2]
+        r_max = max(pri.radius_1, pri.radius_2)
+        extents_x += [-r_max, r_max]
         extents_y += [pri.height_1, pri.height_2]
-    if top is not None:
-        if top.topload_type == ToploadType.TOROID and top.major_diameter:
+    if top is not None and top.height is not None:
+        if top.topload_type == ToploadType.TOROID and top.major_diameter and top.minor_diameter:
             extents_x += [-0.5 * top.major_diameter, 0.5 * top.major_diameter]
-            extents_y += [
-                top.height - 0.5 * (top.minor_diameter or 0.0),
-                top.height + 0.5 * (top.minor_diameter or 0.0),
-            ]
+            extents_y += [top.height - 0.5 * top.minor_diameter, top.height + 0.5 * top.minor_diameter]
         elif top.topload_type == ToploadType.SPHERE and top.sphere_diameter:
             extents_x += [-0.5 * top.sphere_diameter, 0.5 * top.sphere_diameter]
-            extents_y += [
-                top.height - 0.5 * top.sphere_diameter,
-                top.height + 0.5 * top.sphere_diameter,
-            ]
+            extents_y += [top.height - 0.5 * top.sphere_diameter, top.height + 0.5 * top.sphere_diameter]
 
     if not extents_x:
         return (
@@ -133,23 +141,22 @@ def build(state: AppState) -> str:
             f'font-family: Inter, sans-serif;">No coil to draw yet.</div>'
         )
 
-    x_min, x_max = min(extents_x), max(extents_x)
     y_min, y_max = min(extents_y), max(extents_y)
     span_y = max(y_max - y_min, 1e-6)
 
     # Symmetric horizontal centred on x=0.
-    half = max(abs(x_min), abs(x_max)) * 1.15
+    half = max(abs(x) for x in extents_x) * 1.15
     span_x = 2 * half
 
     draw_w = CANVAS_W - 2 * PADDING
-    draw_h = CANVAS_H - 2 * PADDING - 30  # reserve 30px for legend
+    draw_h = CANVAS_H - 2 * PADDING - LEGEND_H
     scale = min(draw_w / span_x, draw_h / span_y)
 
     def sx(x: float) -> float:
         return CANVAS_W / 2 + x * scale
 
     def sy(y: float) -> float:
-        return CANVAS_H - PADDING - 30 - (y - y_min) * scale
+        return CANVAS_H - PADDING - LEGEND_H - (y - y_min) * scale
 
     parts: list[str] = [
         f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {CANVAS_W} {CANVAS_H}" '
@@ -171,118 +178,82 @@ def build(state: AppState) -> str:
         f'font-family="Inter, sans-serif">GND</text>'
     )
 
-    # ── Secondary coil ─────────────────────────────────────────────
+    # ── Secondary coil (trapezoid: bottom radius_1, top radius_2) ──
     if sec is not None:
-        x1s, x2s = sx(-sec.radius_1), sx(sec.radius_1)
-        y1s, y2s = sy(sec.height_2), sy(sec.height_1)
-        w_rect = abs(x2s - x1s)
-        h_rect = abs(y2s - y1s)
-        parts.append(
-            f'<rect x="{min(x1s, x2s)}" y="{min(y1s, y2s)}" '
-            f'width="{w_rect}" height="{h_rect}" rx="2" '
-            f'fill="{VIS_SECONDARY}" fill-opacity="0.45" '
-            f'stroke="{VIS_SECONDARY}" stroke-width="1.5"/>'
+        y_bot, y_top = sy(sec.height_1), sy(sec.height_2)
+        outline = (
+            f"M {sx(-sec.radius_1)} {y_bot} L {sx(-sec.radius_2)} {y_top} "
+            f"L {sx(sec.radius_2)} {y_top} L {sx(sec.radius_1)} {y_bot} Z"
         )
-        # Label
-        lx = sx(sec.radius_1) + 8
-        ly = sy(0.5 * (sec.height_1 + sec.height_2))
         parts.append(
-            f'<text x="{lx}" y="{ly}" font-size="11" fill="{VIS_SECONDARY}" '
-            f'font-family="Inter, sans-serif" font-weight="500">Secondary</text>'
+            f'<path d="{outline}" fill="{VIS_SECONDARY}" fill-opacity="0.45" '
+            f'stroke="{VIS_SECONDARY}" stroke-width="1.5" stroke-linejoin="round"/>'
+        )
+        r_right = max(sec.radius_1, sec.radius_2)
+        parts.append(
+            _label(sx(r_right) + 8, sy(0.5 * (sec.height_1 + sec.height_2)), "Secondary", VIS_SECONDARY)
         )
         # Height dimension line (right side)
-        dim_x = sx(sec.radius_1) + 24
-        height_m = abs(sec.height_2 - sec.height_1)
-        parts.append(_dim_line(dim_x, y1s, dim_x, y2s, f"{height_m * 100:.1f}cm"))
+        dim_x = sx(r_right) + 24
+        parts.append(_dim_line(dim_x, y_bot, dim_x, y_top, length_label(sec.height_2 - sec.height_1)))
 
     # ── Primary coil ───────────────────────────────────────────────
     if pri is not None:
-        if abs(pri.height_2 - pri.height_1) < 1e-6:
-            # Flat spiral
+        r_outer = max(pri.radius_1, pri.radius_2)
+        if lengths_equal(pri.height_1, pri.height_2):
+            # Flat spiral: a thick band from the inner to the outer radius on each side.
+            r_inner = min(pri.radius_1, pri.radius_2)
             y_band = sy(pri.height_1)
-            xa_l = sx(-pri.radius_2)
-            xa_r = sx(pri.radius_2)
-            xb_l = sx(-pri.radius_1)
-            xb_r = sx(pri.radius_1)
-            # Draw as a thick band from r1 to r2 on each side
-            for xl, xr in [(xa_l, xb_l), (xb_r, xa_r)]:
+            for xl, xr in [(sx(-r_outer), sx(-r_inner)), (sx(r_inner), sx(r_outer))]:
                 parts.append(
                     f'<line x1="{xl}" y1="{y_band}" x2="{xr}" y2="{y_band}" '
                     f'stroke="{VIS_PRIMARY}" stroke-width="6" stroke-linecap="round" '
                     f'opacity="0.8"/>'
                 )
-            # Radius dimension (below)
             dim_y = y_band + 20
             parts.append(
-                _dim_line(
-                    sx(-pri.radius_2), dim_y, sx(pri.radius_2), dim_y,
-                    f"\u00d8{pri.radius_2 * 200:.1f}cm"
-                )
+                _dim_line(sx(-r_outer), dim_y, sx(r_outer), dim_y, f"Ø{length_label(2 * r_outer)}")
             )
         else:
-            # Helical / conical trapezoid
-            x_top_l, x_top_r = sx(-pri.radius_2), sx(pri.radius_2)
-            x_bot_l, x_bot_r = sx(-pri.radius_1), sx(pri.radius_1)
-            y_top, y_bot = sy(pri.height_2), sy(pri.height_1)
-            d = (
-                f"M {x_bot_l} {y_bot} "
-                f"L {x_top_l} {y_top} "
-                f"L {x_top_r} {y_top} "
-                f"L {x_bot_r} {y_bot} Z"
+            # Helical / conical trapezoid from (radius_1, height_1) to (radius_2, height_2).
+            y_start, y_end = sy(pri.height_1), sy(pri.height_2)
+            outline = (
+                f"M {sx(-pri.radius_1)} {y_start} L {sx(-pri.radius_2)} {y_end} "
+                f"L {sx(pri.radius_2)} {y_end} L {sx(pri.radius_1)} {y_start} Z"
             )
             parts.append(
-                f'<path d="{d}" fill="{VIS_PRIMARY}" fill-opacity="0.35" '
+                f'<path d="{outline}" fill="{VIS_PRIMARY}" fill-opacity="0.35" '
                 f'stroke="{VIS_PRIMARY}" stroke-width="1.5"/>'
             )
-        # Label
-        parts.append(
-            f'<text x="{sx(pri.radius_2) + 8}" y="{sy(pri.height_1) + 4}" '
-            f'font-size="11" fill="{VIS_PRIMARY}" '
-            f'font-family="Inter, sans-serif" font-weight="500">Primary</text>'
-        )
+        parts.append(_label(sx(r_outer) + 8, sy(min(pri.height_1, pri.height_2)) + 4, "Primary", VIS_PRIMARY))
 
     # ── Topload ────────────────────────────────────────────────────
-    if top is not None:
+    if top is not None and top.height is not None:
+        cy = sy(top.height)
         if top.topload_type == ToploadType.TOROID and top.major_diameter and top.minor_diameter:
-            R = 0.5 * top.major_diameter
+            big_r = 0.5 * top.major_diameter
             r = 0.5 * top.minor_diameter
-            for cx_m in (-R + r, R - r):
-                cx, cy = sx(cx_m), sy(top.height)
-                rx = ry = r * scale
+            for cx_m in (-big_r + r, big_r - r):
                 parts.append(
-                    f'<ellipse cx="{cx}" cy="{cy}" rx="{rx}" ry="{ry}" '
+                    f'<ellipse cx="{sx(cx_m)}" cy="{cy}" rx="{r * scale}" ry="{r * scale}" '
                     f'fill="{VIS_TOPLOAD}" fill-opacity="0.4" '
                     f'stroke="{VIS_TOPLOAD}" stroke-width="1.5"/>'
                 )
-            # Connecting bar between toroid halves
-            parts.append(
-                f'<line x1="{sx(-R + r)}" y1="{sy(top.height) - r * scale}" '
-                f'x2="{sx(R - r)}" y2="{sy(top.height) - r * scale}" '
-                f'stroke="{VIS_TOPLOAD}" stroke-width="1" stroke-opacity="0.4"/>'
-            )
-            parts.append(
-                f'<line x1="{sx(-R + r)}" y1="{sy(top.height) + r * scale}" '
-                f'x2="{sx(R - r)}" y2="{sy(top.height) + r * scale}" '
-                f'stroke="{VIS_TOPLOAD}" stroke-width="1" stroke-opacity="0.4"/>'
-            )
-            parts.append(
-                f'<text x="{sx(R) + 8}" y="{sy(top.height)}" font-size="11" '
-                f'fill="{VIS_TOPLOAD}" font-family="Inter, sans-serif" '
-                f'font-weight="500">Toroid</text>'
-            )
+            # Connecting lines between the toroid halves.
+            for dy in (-r * scale, r * scale):
+                parts.append(
+                    f'<line x1="{sx(-big_r + r)}" y1="{cy + dy}" x2="{sx(big_r - r)}" y2="{cy + dy}" '
+                    f'stroke="{VIS_TOPLOAD}" stroke-width="1" stroke-opacity="0.4"/>'
+                )
+            parts.append(_label(sx(big_r) + 8, cy, "Toroid", VIS_TOPLOAD))
         elif top.topload_type == ToploadType.SPHERE and top.sphere_diameter:
-            r = 0.5 * top.sphere_diameter * scale
-            cx, cy = sx(0.0), sy(top.height)
+            r_px = 0.5 * top.sphere_diameter * scale
             parts.append(
-                f'<circle cx="{cx}" cy="{cy}" r="{r}" '
+                f'<circle cx="{sx(0.0)}" cy="{cy}" r="{r_px}" '
                 f'fill="{VIS_TOPLOAD}" fill-opacity="0.4" '
                 f'stroke="{VIS_TOPLOAD}" stroke-width="1.5"/>'
             )
-            parts.append(
-                f'<text x="{cx + r + 8}" y="{cy}" font-size="11" '
-                f'fill="{VIS_TOPLOAD}" font-family="Inter, sans-serif" '
-                f'font-weight="500">Sphere</text>'
-            )
+            parts.append(_label(sx(0.0) + r_px + 8, cy, "Sphere", VIS_TOPLOAD))
 
     # ── Legend ──────────────────────────────────────────────────────
     parts.append(_legend())

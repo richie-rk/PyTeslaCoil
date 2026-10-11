@@ -1,4 +1,4 @@
-# PyTeslaCoil design tokens — sourced from DESIGN.md (Google Stitch).
+"""PyTeslaCoil design tokens: colors, fonts and the global stylesheet."""
 
 # ── Palette ──────────────────────────────────────────────────────────
 BG = "#0f1117"
@@ -31,8 +31,7 @@ VIS_GRID = "#1e2030"
 FONT_STACK = "Inter, system-ui, -apple-system, sans-serif"
 MONO_STACK = "'JetBrains Mono', 'Fira Code', monospace"
 
-# ── Reusable CSS class strings ───────────────────────────────────────
-CARD_CLASS = "w-full"
+# ── Reusable class / style strings ───────────────────────────────────
 CARD_STYLE = (
     f"background: {SURFACE}; border: 1px solid {SURFACE_BORDER}; "
     f"border-radius: 8px; padding: 24px;"
@@ -47,10 +46,16 @@ VALUE_STYLE = f"color: {ACCENT}; font-family: {MONO_STACK};"
 SECTION_TITLE_CLASS = "text-lg font-semibold"
 SECTION_TITLE_STYLE = f"color: {TEXT}; font-family: {FONT_STACK};"
 
-INPUT_STYLE = (
-    f"background: {INPUT_BG}; border: 1px solid {SURFACE_BORDER}; "
-    f"border-radius: 6px; color: {TEXT};"
+PRIMARY_BUTTON_STYLE = f"background: {ACCENT}; color: {BG}; border-radius: 6px;"
+OUTLINE_BUTTON_STYLE = (
+    f"background: transparent; border: 1px solid {ACCENT}; color: {ACCENT}; border-radius: 6px;"
 )
+
+# Layout of the two-column (inputs | results) tabs.
+TAB_ROW_CLASS = "w-full gap-4 flex-wrap md:flex-nowrap"
+INPUT_COLUMN_CLASS = "flex-[6] sm:min-w-[300px]"
+RESULT_COLUMN_CLASS = "flex-[4] sm:min-w-[300px]"
+FIELD_COLUMN_CLASS = "flex-1 min-w-[180px] gap-3"
 
 # ── Global CSS injected into <head> ─────────────────────────────────
 GLOBAL_CSS = f"""
@@ -129,6 +134,13 @@ body {{
 .q-header {{
     background: {SURFACE} !important;
     border-bottom: 1px solid {SURFACE_BORDER} !important;
+}}
+.github-icon {{
+    fill: {TEXT_DIM};
+    cursor: pointer;
+}}
+.github-icon:hover {{
+    fill: {ACCENT};
 }}
 
 /* Notification overrides */

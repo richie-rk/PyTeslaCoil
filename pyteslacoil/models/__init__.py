@@ -2,19 +2,23 @@
 
 All public engine functions take and return models defined in this package.
 This makes the engine self-documenting, validates user input at the
-boundary, and gives the NiceGUI frontend a typed reactive state object.
+boundary, and gives the NiceGUI frontend a typed state object.
+
+Input models reject unknown fields; output models store SI values and expose
+the usual display units (µH, pF, kHz, …) as computed fields.
 """
 
-from pyteslacoil.models.coil_design import (
-    CoilDesign,
+from pyteslacoil.models.coil_design import CoilDesign, FullSystemOutput
+from pyteslacoil.models.coupling_model import CouplingInput, CouplingOutput
+from pyteslacoil.models.enums import (
     CoilGeometry,
     ConductorType,
-    FullSystemOutput,
     PrimaryGeometry,
+    SparkGapType,
     ToploadType,
+    TransformerType,
     UnitSystem,
 )
-from pyteslacoil.models.coupling_model import CouplingInput, CouplingOutput
 from pyteslacoil.models.environment_model import (
     EnvironmentInput,
     EnvironmentOutput,
@@ -40,6 +44,8 @@ __all__ = [
     "PrimaryGeometry",
     "ConductorType",
     "ToploadType",
+    "TransformerType",
+    "SparkGapType",
     "CoilDesign",
     "FullSystemOutput",
     # secondary

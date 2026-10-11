@@ -14,48 +14,53 @@ References
 - R.G. Medhurst, "H.F. Resistance and Self-Capacitance of Single-Layer
   Solenoids", Wireless Engineer, 24 (1947).  Implemented in
   :mod:`pyteslacoil.engine.medhurst`.
+- S. Ramo, J.R. Whinnery, T. Van Duzer, "Fields and Waves in Communication
+  Electronics" — internal impedance of a round wire (Bessel solution).
 """
 
 from __future__ import annotations
 
 import math
 
+from scipy.special import jve
+
 from pyteslacoil.constants import (
     COPPER_PERMEABILITY,
+    COPPER_REFERENCE_TEMP_C,
     COPPER_RESISTIVITY,
     COPPER_TEMP_COEFF,
+    DEFAULT_TEMP_C,
     MU_0,
     PI,
 )
-from pyteslacoil.engine.medhurst import self_capacitance_pf
-from pyteslacoil.models.coil_design import CoilGeometry
+from pyteslacoil.engine.inductance import wheeler_solenoid_inductance
+from pyteslacoil.engine.medhurst import self_capacitance_farads
+from pyteslacoil.engine.resonance import characteristic_impedance, resonant_frequency
+from pyteslacoil.models.enums import CoilGeometry
 from pyteslacoil.models.secondary_model import SecondaryInput, SecondaryOutput
+from pyteslacoil.units import lengths_equal
 from pyteslacoil.wire_data import bare_diameter_m, resistance_per_meter
 
+__all__ = [
+    "ac_resistance",
+    "calculate_secondary",
+    "conical_inductance",
+    "copper_resistivity",
+    "dc_resistance",
+    "detect_secondary_geometry",
+    "skin_depth",
+    "wheeler_solenoid_inductance",
+    "wire_length_for_secondary",
+]
 
-def _detect_geometry(radius_1: float, radius_2: float) -> CoilGeometry:
-    """Classify the secondary coil from its top/bottom radii."""
-    if math.isclose(radius_1, radius_2, rel_tol=1e-6):
+
+def detect_secondary_geometry(radius_1: float, radius_2: float) -> CoilGeometry:
+    """Classify the secondary coil from its bottom/top radii."""
+    if lengths_equal(radius_1, radius_2):
         return CoilGeometry.SOLENOID
     if radius_2 > radius_1:
         return CoilGeometry.CONICAL
     return CoilGeometry.INVERSE_CONICAL
-
-
-def wheeler_solenoid_inductance(
-    turns: float, radius_m: float, length_m: float
-) -> float:
-    """Wheeler's classical formula for a single-layer solenoid.
-
-    Returns inductance in Henries.
-
-        L = (μ₀ · N² · π · r²) / (l + 0.9 · r)
-
-    Accurate to ~1 % for typical Tesla coil aspect ratios (l/d ≥ 0.4).
-    """
-    if length_m <= 0 or radius_m <= 0 or turns <= 0:
-        return 0.0
-    return (MU_0 * turns * turns * PI * radius_m * radius_m) / (length_m + 0.9 * radius_m)
 
 
 def conical_inductance(
@@ -68,61 +73,73 @@ def conical_inductance(
 
     Approximation: average the radii and reuse the Wheeler solenoid
     formula. Good to ~3 % for moderate cone angles, which matches the
-    accuracy of the basic Wheeler formula on a straight solenoid. For high
-    accuracy at extreme cone angles use the Neumann/filamentary mutual
-    inductance method (see :mod:`pyteslacoil.engine.coupling`).
+    accuracy of the basic Wheeler formula on a straight solenoid.
     """
     r_avg = 0.5 * (radius_1_m + radius_2_m)
     return wheeler_solenoid_inductance(turns, r_avg, length_m)
 
 
-def wire_length_for_secondary(
-    turns: float, radius_1_m: float, radius_2_m: float
-) -> float:
+def wire_length_for_secondary(turns: float, radius_1_m: float, radius_2_m: float) -> float:
     """Total length of wire wound on the secondary form.
 
-    For a solenoid this is exactly ``N · 2π · r``. For a cone the average
-    radius gives an exact answer for a uniform-pitch winding.
+    ``N · 2π · r_avg``; for a cone the radius varies linearly, so the
+    average radius gives the mean turn length. The axial advance of the
+    winding adds well under 0.01 % for close-wound coils and is neglected.
     """
     r_avg = 0.5 * (radius_1_m + radius_2_m)
     return turns * 2.0 * PI * r_avg
 
 
-def dc_resistance(
-    awg: int, length_m: float, temperature_c: float = 20.0
-) -> float:
+def copper_resistivity(temperature_c: float = DEFAULT_TEMP_C) -> float:
+    """Resistivity of annealed copper at ``temperature_c`` (Ω·m)."""
+    return COPPER_RESISTIVITY * (
+        1.0 + COPPER_TEMP_COEFF * (temperature_c - COPPER_REFERENCE_TEMP_C)
+    )
+
+
+def dc_resistance(awg: int, length_m: float, temperature_c: float = DEFAULT_TEMP_C) -> float:
     """DC resistance of a length of magnet wire at temperature T."""
-    r_per_m = resistance_per_meter(awg)
-    temp_factor = 1.0 + COPPER_TEMP_COEFF * (temperature_c - 20.0)
-    return r_per_m * length_m * temp_factor
+    temp_factor = copper_resistivity(temperature_c) / COPPER_RESISTIVITY
+    return resistance_per_meter(awg) * length_m * temp_factor
 
 
-def skin_depth(frequency_hz: float) -> float:
-    """Skin depth in copper at the given frequency.
+def skin_depth(frequency_hz: float, temperature_c: float = DEFAULT_TEMP_C) -> float:
+    """Skin depth in copper at the given frequency and temperature.
 
-    δ = √(ρ / (π · f · μ₀ · μᵣ))
+    δ = √(ρ(T) / (π · f · μ₀ · μᵣ))
     """
     if frequency_hz <= 0:
-        return float("inf")
+        return math.inf
     return math.sqrt(
-        COPPER_RESISTIVITY / (PI * frequency_hz * MU_0 * COPPER_PERMEABILITY)
+        copper_resistivity(temperature_c) / (PI * frequency_hz * MU_0 * COPPER_PERMEABILITY)
     )
 
 
 def ac_resistance(
-    r_dc: float, wire_radius_m: float, frequency_hz: float
+    r_dc: float,
+    wire_radius_m: float,
+    frequency_hz: float,
+    temperature_c: float = DEFAULT_TEMP_C,
 ) -> float:
-    """AC resistance of a round wire including the skin-effect penalty.
+    """AC resistance of an isolated round wire including skin effect.
 
-    For a wire of radius ``a`` at frequency ``f`` with skin depth δ:
+    Exact Bessel-function solution for a round conductor of radius ``a``:
 
-    - if ``a < 2δ`` the skin effect is small and ``R_ac ≈ R_dc``
-    - otherwise ``R_ac ≈ R_dc · a / (2δ)``  (high-frequency approximation)
+        R_ac / R_dc = Re[(q·a / 2) · J₀(q·a) / J₁(q·a)],   q = (1 − j) / δ
+
+    which tends to 1 + (a/δ)⁴/48 at low frequency and to a/(2δ) + 1/4 at
+    high frequency. The proximity effect of neighbouring turns is not
+    included, so the result is a lower bound on the winding's real AC
+    resistance (and the derived Q an upper bound).
     """
-    delta = skin_depth(frequency_hz)
-    if wire_radius_m < 2.0 * delta:
+    delta = skin_depth(frequency_hz, temperature_c)
+    x = wire_radius_m / delta
+    if x < 1e-3:
         return r_dc
-    return r_dc * wire_radius_m / (2.0 * delta)
+    qa = (1.0 - 1.0j) * x
+    # jve is exponentially scaled; the scale factor cancels in the ratio.
+    ratio = (0.5 * qa) * jve(0, qa) / jve(1, qa)
+    return r_dc * float(ratio.real)
 
 
 def calculate_secondary(inp: SecondaryInput) -> SecondaryOutput:
@@ -139,68 +156,39 @@ def calculate_secondary(inp: SecondaryInput) -> SecondaryOutput:
         Filled with inductance, self-capacitance, resonant frequency,
         wire length, resistances, Q factor, impedance, etc.
     """
-    geometry = _detect_geometry(inp.radius_1, inp.radius_2)
+    geometry = detect_secondary_geometry(inp.radius_1, inp.radius_2)
     winding_height = inp.height_2 - inp.height_1
 
-    # Inductance.
     if geometry == CoilGeometry.SOLENOID:
-        L = wheeler_solenoid_inductance(inp.turns, inp.radius_1, winding_height)
+        inductance = wheeler_solenoid_inductance(inp.turns, inp.radius_1, winding_height)
     else:
-        L = conical_inductance(
-            inp.turns, inp.radius_1, inp.radius_2, winding_height
-        )
+        inductance = conical_inductance(inp.turns, inp.radius_1, inp.radius_2, winding_height)
 
     # Self-capacitance via Medhurst, using the average diameter.
     avg_diameter = inp.radius_1 + inp.radius_2
-    c_self_pf = self_capacitance_pf(winding_height, avg_diameter)
-    c_self_f = c_self_pf * 1e-12
+    c_self = self_capacitance_farads(winding_height, avg_diameter)
 
     # Bare resonant frequency (no topload).
-    if L > 0 and c_self_f > 0:
-        f_res = 1.0 / (2.0 * PI * math.sqrt(L * c_self_f))
-    else:
-        f_res = 0.0
+    f_res = resonant_frequency(inductance, c_self)
 
-    # Wire geometry.
-    wire_d = bare_diameter_m(inp.wire_awg)
-    wire_radius = 0.5 * wire_d
+    wire_radius = 0.5 * bare_diameter_m(inp.wire_awg)
     wire_len = wire_length_for_secondary(inp.turns, inp.radius_1, inp.radius_2)
 
-    # DC and AC resistance.
     r_dc = dc_resistance(inp.wire_awg, wire_len, inp.temperature_c)
-    r_ac = ac_resistance(r_dc, wire_radius, f_res)
-    delta = skin_depth(f_res)
-
-    # Q factor and impedance.
-    if r_ac > 0 and L > 0 and f_res > 0:
-        q = 2.0 * PI * f_res * L / r_ac
-    else:
-        q = 0.0
-    if c_self_f > 0 and L > 0:
-        impedance = math.sqrt(L / c_self_f)
-    else:
-        impedance = 0.0
-
-    aspect_ratio = winding_height / (2.0 * 0.5 * (inp.radius_1 + inp.radius_2))
-    wire_spacing = winding_height / inp.turns if inp.turns > 0 else 0.0
+    r_ac = ac_resistance(r_dc, wire_radius, f_res, inp.temperature_c)
 
     return SecondaryOutput(
-        inductance_h=L,
-        inductance_uh=L * 1e6,
-        inductance_mh=L * 1e3,
-        self_capacitance_f=c_self_f,
-        self_capacitance_pf=c_self_pf,
+        inductance_h=inductance,
+        self_capacitance_f=c_self,
         resonant_frequency_hz=f_res,
-        resonant_frequency_khz=f_res / 1000.0,
         wire_length_m=wire_len,
-        wire_length_ft=wire_len / 0.3048,
         dc_resistance_ohms=r_dc,
         ac_resistance_ohms=r_ac,
-        skin_depth_m=delta,
-        q_factor=q,
-        impedance_ohms=impedance,
+        skin_depth_m=skin_depth(f_res, inp.temperature_c),
+        q_factor=2.0 * PI * f_res * inductance / r_ac,
+        impedance_ohms=characteristic_impedance(inductance, c_self),
         winding_height_m=winding_height,
-        aspect_ratio=aspect_ratio,
-        wire_spacing_m=wire_spacing,
+        aspect_ratio=winding_height / avg_diameter,
+        wire_spacing_m=winding_height / inp.turns,
         coil_geometry=geometry,
     )

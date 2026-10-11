@@ -2,7 +2,7 @@
 
 - :mod:`consolidated` — JavaTC-style plain text report
 - :mod:`json_export` — round-trippable JSON
-- :mod:`pdf_export`  — single-page PDF (requires ``reportlab``)
+- :mod:`pdf_export`  — PDF version of the text report (reportlab)
 """
 
 from pyteslacoil.export.consolidated import to_text

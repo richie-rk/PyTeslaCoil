@@ -22,7 +22,7 @@ keywords = [
     "electromagnetism",
 ]
 classifiers = [
-    "Development Status :: 3 - Alpha",
+    "Development Status :: 4 - Beta",
     "Intended Audience :: Science/Research",
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
@@ -30,16 +30,16 @@ classifiers = [
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Topic :: Scientific/Engineering :: Physics",
     "Topic :: Scientific/Engineering :: Electronic Design Automation (EDA)",
 ]
 
 dependencies = [
-    "nicegui>=2.0",
-    "pydantic>=2.0",
+    "nicegui>=3.0,<4",
+    "pydantic>=2.0,<3",
     "numpy>=1.24",
     "scipy>=1.10",
-    "plotly>=5.15",
     "reportlab>=4.0",
 ]
 
@@ -52,16 +52,16 @@ dev = [
 ]
 
 [project.scripts]
-pyteslacoil = "ui.main:run"
+pyteslacoil = "pyteslacoil.ui.main:run"
 
 [project.urls]
 Homepage = "https://github.com/richie-rk/pyteslacoil"
-Documentation = "https://github.com/richie-rk/pyteslacoil/tree/main/docs"
+Documentation = "https://github.com/richie-rk/pyteslacoil#readme"
 Repository = "https://github.com/richie-rk/pyteslacoil"
 Issues = "https://github.com/richie-rk/pyteslacoil/issues"
 
 [tool.hatch.build.targets.wheel]
-packages = ["pyteslacoil", "ui"]
+packages = ["pyteslacoil"]
 
 [tool.ruff]
 line-length = 100
@@ -71,6 +71,18 @@ target-version = "py310"
 select = ["E", "F", "W", "I", "B", "UP"]
 ignore = ["E501"]
 
+[tool.mypy]
+python_version = "3.10"
+files = ["pyteslacoil", "tests"]
+plugins = ["pydantic.mypy"]
+warn_unused_ignores = true
+# Pydantic's @computed_field is applied on top of @property.
+disable_error_code = ["prop-decorator"]
+
+[[tool.mypy.overrides]]
+module = ["scipy.*", "reportlab.*"]
+ignore_missing_imports = true
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = ["test_*.py"]
@@ -78,5 +90,5 @@ addopts = "-v"
 
 [tool.semantic_release]
 version_toml = ["pyproject.toml:project.version"]
+version_variables = ["pyteslacoil/__init__.py:__version__"]
 branch = "main"
-build_command = "pip install build && python -m build"
